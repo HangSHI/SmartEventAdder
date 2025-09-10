@@ -1,0 +1,20 @@
+# Python project dependencies for SmartEventAdder
+# Google Calendar API
+google-api-python-client==2.181.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.2
+
+# Environment variables
+python-dotenv==1.1.1
+
+# LLM Integration (for event parsing)
+anthropic==0.66.0
+
+# Date/time handling
+python-dateutil==2.9.0.post0
+
+# HTTP requests (if needed for API calls)
+requests==2.32.5
+
+# JSON handling and data processing
+jsonschema==4.25.1
