@@ -58,7 +58,7 @@ def Calendar(event_data):
         
         # Format as RFC3339 with JST timezone
         start_rfc3339 = f"{event_date}T{start_time}:00+09:00"
-        end_rfc3339 = f"{event_date}T{end_datetime.strftime('%H:%M')}:00+09:00"
+        end_rfc3339 = f"{end_datetime.strftime('%Y-%m-%d')}T{end_datetime.strftime('%H:%M')}:00+09:00"
         
         # Create event object
         event = {
