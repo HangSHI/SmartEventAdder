@@ -1,6 +1,6 @@
 import json
-from google.cloud import aiplatform
-from google.cloud.aiplatform import generative_models
+import vertexai
+from vertexai.generative_models import GenerativeModel
 
 
 def extract_event_details(project_id, location, email_text):
@@ -15,11 +15,11 @@ def extract_event_details(project_id, location, email_text):
     Returns:
         dict: Dictionary containing extracted event details
     """
-    # Initialize the AI Platform
-    aiplatform.init(project=project_id, location=location)
+    # Initialize Vertex AI
+    vertexai.init(project=project_id, location=location)
 
     # Initialize the Gemini Pro model
-    model = generative_models.GenerativeModel("gemini-1.0-pro")
+    model = GenerativeModel("gemini-1.0-pro")
 
     # Create the prompt
     prompt = f"""
