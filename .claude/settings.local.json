@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/Users/ko.shi/Projects/SmartEventAdder/Agent_Mail_Output\")",
+      "WebFetch(domain:pypi.org)",
+      "Bash(pip index versions google-api-python-client)",
+      "Bash(pip index versions google-auth-httplib2 google-auth-oauthlib python-dotenv anthropic python-dateutil requests jsonschema)",
+      "Bash(pip index versions google-auth-httplib2)",
+      "Bash(pip index versions google-auth-oauthlib)",
+      "Bash(pip index versions python-dotenv)",
+      "Bash(pip index versions anthropic)",
+      "Bash(pip index versions python-dateutil)",
+      "Bash(pip index versions requests)",
+      "Bash(pip index versions jsonschema)",
+      "Read(//Users/ko.shi/.ssh/**)",
+      "Bash(git add .)",
+      "Bash(git push -u origin main)",
+      "Bash(python setup_check.py)",
+      "Bash(pip install google-auth-oauthlib==1.2.2)",
+      "Bash(git branch -d feature/testing-implementation)",
+      "Bash(conda env list)",
+      "Bash(python -m venv --help)",
+      "Bash(python -m pytest tests/test_event_parser_unit.py tests/test_event_parser_integration.py -v)",
+      "Bash(PYTHONPATH=\"/Users/ko.shi/Projects/SmartEventAdder/Agent_Mail_Output/modules:$PYTHONPATH\" python -m pytest tests/test_event_parser_unit.py tests/test_event_parser_integration.py -v)",
+      "Bash(pip install google-cloud-aiplatform)",
+      "Bash(python -c \"from google.cloud import aiplatform; print(''Import successful'')\")",
+      "Bash(python -c \"from google.cloud.aiplatform import generative_models; print(''Import successful'')\")",
+      "Bash(python -c \"import google.cloud.aiplatform; print(dir(google.cloud.aiplatform))\")",
+      "Bash(python -c \"from google.cloud.aiplatform.preview import generative_models; print(''Preview import successful'')\")",
+      "Bash(python -c \"import vertexai; from vertexai.generative_models import GenerativeModel; print(''Vertex AI import successful'')\")",
+      "Bash(git init)",
+      "Bash(git checkout -b main)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
