@@ -7,8 +7,8 @@ google-auth-oauthlib==1.2.2
 # Environment variables
 python-dotenv==1.1.1
 
-# LLM Integration (for event parsing)
-anthropic==0.66.0
+# AI Integration (for event parsing)
+google-cloud-aiplatform==1.113.0
 
 # Date/time handling
 python-dateutil==2.9.0.post0

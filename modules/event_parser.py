@@ -18,8 +18,8 @@ def extract_event_details(project_id, location, email_text):
     # Initialize Vertex AI
     vertexai.init(project=project_id, location=location)
 
-    # Initialize the Gemini Pro model
-    model = GenerativeModel("gemini-1.0-pro")
+    # Initialize the Gemini Pro model (using the newer model name)
+    model = GenerativeModel("gemini-1.5-flash")
 
     # Create the prompt
     prompt = f"""
@@ -43,6 +43,13 @@ Email text:
 
     # Parse the JSON response
     json_response = response.text.strip()
+
+    # Remove markdown code blocks if present
+    if json_response.startswith('```json'):
+        json_response = json_response.replace('```json\n', '').replace('\n```', '')
+    elif json_response.startswith('```'):
+        json_response = json_response.replace('```\n', '').replace('\n```', '')
+
     event_details = json.loads(json_response)
 
     return event_details
