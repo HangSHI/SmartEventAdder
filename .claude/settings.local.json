@@ -29,7 +29,11 @@
       "Bash(python -c \"from google.cloud.aiplatform.preview import generative_models; print(''Preview import successful'')\")",
       "Bash(python -c \"import vertexai; from vertexai.generative_models import GenerativeModel; print(''Vertex AI import successful'')\")",
       "Bash(git init)",
-      "Bash(git checkout -b main)"
+      "Bash(git checkout -b main)",
+      "Bash(git remote add origin git@github.com-person:HangSHI/SmartEventAdder.git)",
+      "Bash(git commit -m \"Remove test cases and clean up project structure\")",
+      "Bash(git fetch origin)",
+      "Bash(git merge origin/main --allow-unrelated-histories)"
     ],
     "deny": [],
     "ask": []
