@@ -11,8 +11,9 @@ SmartEventAdder/
 │   ├── event_parser.py       # The "Brain" - All LLM logic goes here (uses Vertex AI)
 │   └── google_calendar.py    # The "Hands" - All Google Calendar API logic
 │
-├── tests/                    # Unit and integration tests for the project
+├── tests/                    # Comprehensive unit and integration tests
 │   ├── __init__.py           # Makes 'tests' a Python package
+│   ├── test_main.py          # Unit tests for main.py orchestrator (31 test cases)
 │   ├── test_event_parser.py  # Unit tests for event_parser module
 │   ├── test_event_parser_integration.py # Integration tests with real Vertex AI API
 │   ├── test_google_calendar.py # Unit tests for google_calendar module
@@ -44,7 +45,7 @@ SmartEventAdder/
 - **OAuth 2.0 Authentication**: Secure authentication with Google Calendar API
 - **JST Timezone Support**: Properly handles Japan Standard Time (JST/UTC+9)
 - **1-Hour Event Duration**: Creates events with a default duration of 1 hour
-- **Comprehensive Testing**: Both unit tests with mocking and integration tests with real Vertex AI API calls
+- **Comprehensive Testing**: 56 test cases including complete main.py orchestrator testing (31 tests), unit tests with mocking, and integration tests with real APIs
 - **Comprehensive Logging**: Detailed logging for debugging and monitoring
 
 ## Setup
@@ -213,41 +214,106 @@ We provide sample email files for testing:
 
 ## Testing
 
-### Unit Tests (with mocking)
-Run the unit tests to verify functionality without external API calls:
+This project includes a comprehensive test suite with **56 total test cases** covering all functionality:
+
+### Test Suite Overview
+
+| Test File | Test Count | Purpose |
+|-----------|------------|---------|
+| `test_main.py` | 31 tests | Complete orchestrator workflow testing |
+| `test_event_parser.py` | 6 tests | Event parsing unit tests with mocking |
+| `test_event_parser_integration.py` | 6 tests | Real Vertex AI API integration tests |
+| `test_google_calendar.py` | 8 tests | Google Calendar API unit tests |
+| `test_integration.py` | 5 tests | End-to-end integration tests |
+
+### Main Orchestrator Tests (31 test cases)
+
+Run comprehensive unit tests for the main workflow orchestrator:
 
 ```bash
-# Run unit tests only
-python -m pytest tests/test_event_parser.py -v
+# Run all main.py function tests
+python -m pytest tests/test_main.py -v
 
-# Run all unit tests
-python -m pytest -k "not integration" -v
+# Run specific test categories
+python -m pytest tests/test_main.py::TestMainFunctions -v
+python -m pytest tests/test_main.py::TestMainIntegration -v
 
-# Run tests with coverage
-python -m pytest --cov=modules tests/test_event_parser.py
+# Run with coverage report
+python -m pytest --cov=main tests/test_main.py
 ```
 
-### Integration Tests (with real APIs)
-Run integration tests that make actual calls to Vertex AI:
+**Main.py Test Coverage:**
+- **setup_logging()** - Logging configuration validation
+- **load_environment()** - Environment variable loading (success, missing, defaults)
+- **get_email_input()** - Multiple input methods (file, text, interactive, error handling)
+- **validate_email_input()** - Input sanitization, validation, security filtering
+- **validate_extracted_data()** - Data validation, date/time format checking
+- **display_event_details()** - Event display formatting with missing data handling
+- **get_user_confirmation()** - User interaction simulation and validation
+- **create_calendar_event()** - Calendar integration with comprehensive error scenarios
+
+### Event Parser Tests (Unit & Integration)
 
 ```bash
-# Run integration tests (requires authentication)
+# Unit tests with mocking (no external API calls)
+python -m pytest tests/test_event_parser.py -v
+
+# Integration tests with real Vertex AI API
 python -m pytest tests/test_event_parser_integration.py -v
 
-# Run with verbose output to see AI responses
+# Integration tests with verbose output to see AI responses
 python -m pytest tests/test_event_parser_integration.py -v -s
 ```
 
-### All Tests
+### Google Calendar Tests
+
 ```bash
-# Run all tests
-python -m pytest
+# Run Google Calendar unit tests
+python -m pytest tests/test_google_calendar.py -v
+
+# Run calendar integration tests (requires credentials)
+python -m pytest tests/test_integration.py -v
+```
+
+### Running All Tests
+
+```bash
+# Run complete test suite (56 tests)
+python -m pytest -v
+
+# Run with coverage report
+python -m pytest --cov=modules --cov=main -v
+
+# Run only unit tests (skip integration tests)
+python -m pytest -k "not integration" -v
 
 # Use the test runner script
 python run_tests.py
 ```
 
-**Note:** Integration tests require Google Cloud authentication (see setup steps above).
+### Test Categories
+
+**Unit Tests (with mocking):**
+- No external API calls required
+- Fast execution
+- Comprehensive function coverage
+- Security and validation testing
+
+**Integration Tests (with real APIs):**
+- Requires Google Cloud authentication
+- Real Vertex AI API calls
+- End-to-end workflow validation
+- Slower execution but validates actual functionality
+
+### Test Requirements
+
+**For Unit Tests:** No additional setup required
+**For Integration Tests:**
+- Google Cloud authentication (run `./setup_gcloud.sh`)
+- Valid `.env` file with project configuration
+- Internet connection for API calls
+
+**Note:** All integration tests are designed to be safe and use minimal API quotas.
 
 ## Authentication Flow
 
