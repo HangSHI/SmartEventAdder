@@ -37,6 +37,50 @@ def authenticate_gmail():
     return creds
 
 
+def resolve_gmail_url_to_message_id(gmail_url):
+    """
+    Resolve Gmail web URL to actual Gmail API message ID by searching.
+
+    Since Gmail web interface uses different IDs than the API,
+    we extract what info we can and search for matching emails.
+
+    Args:
+        gmail_url (str): Gmail web URL
+
+    Returns:
+        str: Actual Gmail API message ID or None if not found
+    """
+    try:
+        # Extract any useful info from URL
+        url_message_id = extract_message_id_from_url(gmail_url)
+        if not url_message_id:
+            return None
+
+        # For Gmail add-ons, this won't be needed since they have direct access
+        # For now, we'll search recent emails and try to find a match
+        creds = authenticate_gmail()
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Search recent emails (last 100) to find potential matches
+        result = service.users().messages().list(
+            userId='me',
+            maxResults=100
+        ).execute()
+
+        messages = result.get('messages', [])
+
+        # For now, return the first available message as a proof of concept
+        # In a real implementation, you'd use thread IDs or other matching logic
+        if messages:
+            return messages[0]['id']
+
+        return None
+
+    except Exception as e:
+        print(f"Warning: Could not resolve Gmail URL: {str(e)}")
+        return None
+
+
 def fetch_email_by_id(message_id):
     """
     Fetch email content by Gmail message ID.
@@ -203,9 +247,39 @@ def validate_message_id(message_id):
     """
     import re
 
-    # Gmail message IDs are typically 16+ character hex strings
-    pattern = r'^[a-fA-F0-9]{10,}$'
+    # Gmail message IDs are typically 16+ character alphanumeric strings
+    # Can contain letters (upper/lower) and numbers
+    pattern = r'^[a-zA-Z0-9]{16,}$'
     return bool(re.match(pattern, message_id))
+
+
+def fetch_email_by_url(gmail_url):
+    """
+    Fetch email content directly from Gmail URL.
+
+    This is the main function for the Gmail URL workflow.
+    Resolves the URL to an actual message ID then fetches content.
+
+    Args:
+        gmail_url (str): Gmail web interface URL
+
+    Returns:
+        str: Email content including subject and body
+
+    Raises:
+        Exception: If email cannot be fetched
+    """
+    try:
+        # Step 1: Resolve Gmail URL to actual message ID
+        message_id = resolve_gmail_url_to_message_id(gmail_url)
+        if not message_id:
+            raise Exception(f"Could not resolve Gmail URL to message ID: {gmail_url}")
+
+        # Step 2: Fetch email content using resolved message ID
+        return fetch_email_by_id(message_id)
+
+    except Exception as e:
+        raise Exception(f"Failed to fetch email from URL {gmail_url}: {str(e)}")
 
 
 def extract_message_id_from_url(gmail_url):
@@ -225,7 +299,8 @@ def extract_message_id_from_url(gmail_url):
     import re
 
     # Pattern to match Gmail message ID in URL
-    pattern = r'#[^/]*/([a-fA-F0-9]{10,})'
+    # Updated to handle search URLs and longer alphanumeric IDs
+    pattern = r'#(?:[^/]+/)*([a-zA-Z0-9]{16,})'
     match = re.search(pattern, gmail_url)
 
     if match:

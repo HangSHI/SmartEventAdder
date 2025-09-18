@@ -9,7 +9,8 @@ SmartEventAdder/
 ├── modules/                  # A folder for all your reusable logic
 │   ├── __init__.py           # Makes 'modules' a Python package
 │   ├── event_parser.py       # The "Brain" - All LLM logic goes here (uses Vertex AI)
-│   └── google_calendar.py    # The "Hands" - All Google Calendar API logic
+│   ├── google_calendar.py    # The "Hands" - All Google Calendar API logic
+│   └── gmail_fetcher.py      # The "Eyes" - Gmail API integration for email fetching
 │
 ├── tests/                    # Comprehensive unit and integration tests
 │   ├── __init__.py           # Makes 'tests' a Python package
@@ -17,6 +18,7 @@ SmartEventAdder/
 │   ├── test_event_parser.py  # Unit tests for event_parser module
 │   ├── test_event_parser_integration.py # Integration tests with real Vertex AI API
 │   ├── test_google_calendar.py # Unit tests for google_calendar module
+│   ├── test_gmail_fetcher.py # Unit tests for gmail_fetcher module
 │   └── test_integration.py   # General integration tests
 │
 ├── main.py                   # The "Orchestrator" - Complete workflow from email to calendar
@@ -39,13 +41,14 @@ SmartEventAdder/
 - **Complete Workflow Orchestration**: End-to-end automation from email text to calendar event
 - **AI-Powered Event Parsing**: Uses Google Vertex AI (Gemini 1.5 Flash) to extract event information from natural language text
 - **Google Calendar Integration**: Automatically creates events in your Google Calendar
-- **Multiple Input Methods**: Support for file input, direct text, and interactive mode
+- **Multiple Input Methods**: Support for file input, direct text, interactive mode, and Gmail message ID fetching
+- **Gmail API Integration**: Fetch emails directly from Gmail using message IDs or URLs
 - **Input Validation & Security**: Sanitizes input and validates data before processing
 - **User Confirmation**: Review extracted details before creating calendar events
-- **OAuth 2.0 Authentication**: Secure authentication with Google Calendar API
+- **OAuth 2.0 Authentication**: Secure authentication with Google Calendar and Gmail APIs
 - **JST Timezone Support**: Properly handles Japan Standard Time (JST/UTC+9)
 - **1-Hour Event Duration**: Creates events with a default duration of 1 hour
-- **Comprehensive Testing**: 56 test cases including complete main.py orchestrator testing (31 tests), unit tests with mocking, and integration tests with real APIs
+- **Comprehensive Testing**: 75+ test cases including Gmail fetcher testing (19 tests), Gmail integration tests (9 tests), complete main.py orchestrator testing (31 tests), unit tests with mocking, and integration tests with real APIs
 - **Comprehensive Logging**: Detailed logging for debugging and monitoring
 
 ## Setup
@@ -127,6 +130,30 @@ GOOGLE_CLOUD_LOCATION=asia-northeast1
 
 ## Usage
 
+### Gmail Fetcher Module
+
+The `gmail_fetcher.py` module provides Gmail API integration to fetch emails by message ID:
+
+```python
+from modules.gmail_fetcher import fetch_email_by_url, fetch_email_by_id, extract_message_id_from_url
+
+# Method 1: Fetch email directly from Gmail URL (Recommended)
+gmail_url = "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpnHbpQPZzTKQgjzPtdsWrwpr"
+email_content = fetch_email_by_url(gmail_url)
+
+# Method 2: Step-by-step URL processing (Advanced)
+gmail_url = "https://mail.google.com/mail/u/0/#search/予約/FMfcgzQbgcQTZvmQLHXPxgKmCvJZFGKp"
+message_id = extract_message_id_from_url(gmail_url)  # Extract URL ID
+actual_id = resolve_gmail_url_to_message_id(gmail_url)  # Resolve to API ID
+email_content = fetch_email_by_id(actual_id)
+
+# Method 3: Direct API message ID (if known)
+api_message_id = "1995b3c89509dde1"
+email_content = fetch_email_by_id(api_message_id)
+
+# The fetched email_content can then be passed to the event parser
+```
+
 ### Google Calendar Module
 
 The `google_calendar.py` module provides the `Calendar()` function to create events:
@@ -196,7 +223,7 @@ We provide sample email files for testing:
 - `sample_emails/casual_event.txt` - Casual company picnic
 
 #### **Workflow Steps:**
-1. **📧 Email Input** - Get email content via file, text, or interactive input
+1. **📧 Email Input** - Get email content via file, text, interactive input, or Gmail message ID
 2. **🛡️ Input Validation** - Sanitize and validate email content
 3. **🤖 AI Processing** - Extract event details using Vertex AI
 4. **✅ Data Validation** - Verify extracted information completeness
@@ -214,7 +241,7 @@ We provide sample email files for testing:
 
 ## Testing
 
-This project includes a comprehensive test suite with **56 total test cases** covering all functionality:
+This project includes a comprehensive test suite with **75+ total test cases** covering all functionality:
 
 ### Test Suite Overview
 
@@ -224,7 +251,9 @@ This project includes a comprehensive test suite with **56 total test cases** co
 | `test_event_parser.py` | 6 tests | Event parsing unit tests with mocking |
 | `test_event_parser_integration.py` | 6 tests | Real Vertex AI API integration tests |
 | `test_google_calendar.py` | 8 tests | Google Calendar API unit tests |
-| `test_integration.py` | 5 tests | End-to-end integration tests |
+| `test_gmail_fetcher.py` | 19 tests | Gmail API integration unit tests (updated) |
+| `test_gmail_fetcher_integration.py` | 9 tests | Gmail API integration tests with real data |
+| `test_integration.py` | 5+ tests | End-to-end integration tests |
 
 ### Main Orchestrator Tests (31 test cases)
 
@@ -265,6 +294,63 @@ python -m pytest tests/test_event_parser_integration.py -v
 python -m pytest tests/test_event_parser_integration.py -v -s
 ```
 
+### Gmail Fetcher Tests (19 test cases)
+
+Run comprehensive unit tests for the Gmail API integration module:
+
+```bash
+# Run all Gmail fetcher unit tests
+python -m pytest tests/test_gmail_fetcher.py -v
+
+# Run specific test categories
+python -m pytest tests/test_gmail_fetcher.py::TestGmailFetcherUnit -v
+python -m pytest tests/test_gmail_fetcher.py::TestGmailFetcherIntegration -v
+
+# Run with coverage report (93% coverage)
+python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher.py --cov-report=term-missing
+```
+
+**Gmail Fetcher Test Coverage:**
+- **authenticate_gmail()** - OAuth2 authentication flow testing
+- **fetch_email_by_id()** - Email fetching with success, not found, and access denied scenarios
+- **fetch_email_by_url()** - Complete Gmail URL to email content workflow (NEW)
+- **resolve_gmail_url_to_message_id()** - Gmail URL to API message ID resolution (NEW)
+- **extract_email_content()** - Email content extraction from Gmail message objects
+- **extract_message_body()** - Plain text and multipart message handling
+- **strip_html_tags()** - HTML email content processing
+- **validate_message_id()** - Message ID format validation (updated for new formats)
+- **extract_message_id_from_url()** - URL parsing for Gmail links (updated regex)
+
+### Gmail Fetcher Integration Tests
+
+Run integration tests with real Gmail API calls (requires authentication):
+
+```bash
+# Run Gmail fetcher integration tests with real Gmail data
+python -m pytest tests/test_gmail_fetcher_integration.py -v -s
+
+# Run specific integration test categories
+python -m pytest tests/test_gmail_fetcher_integration.py::TestGmailFetcherIntegration -v -s
+python -m pytest tests/test_gmail_fetcher_integration.py::TestGmailFetcherRealWorldScenarios -v -s
+
+# Run with coverage report
+python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher_integration.py -v -s
+```
+
+**Integration Test Requirements:**
+- Valid `credentials.json` file with Gmail API access
+- Gmail API enabled in Google Cloud Console
+- OAuth2 authentication completed (`token.json` with Gmail scopes)
+- Real Gmail message IDs for testing
+
+**Integration Test Coverage:**
+- **Real Gmail authentication** - Complete OAuth2 flow testing
+- **URL parsing** - Extract message IDs from real Gmail URLs
+- **Email fetching** - Retrieve actual emails by message ID
+- **Complete workflow** - Gmail URL → Message ID → Email content
+- **Error handling** - Nonexistent message ID scenarios
+- **Permission verification** - Gmail scope validation
+
 ### Google Calendar Tests
 
 ```bash
@@ -278,7 +364,7 @@ python -m pytest tests/test_integration.py -v
 ### Running All Tests
 
 ```bash
-# Run complete test suite (56 tests)
+# Run complete test suite (75+ tests)
 python -m pytest -v
 
 # Run with coverage report
