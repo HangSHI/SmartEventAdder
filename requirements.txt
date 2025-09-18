@@ -1,5 +1,5 @@
 # Python project dependencies for SmartEventAdder
-# Google Calendar API
+# Google APIs (Calendar + Gmail)
 google-api-python-client==2.181.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.2

@@ -6,7 +6,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/gmail.readonly'
+]
 
 def authenticate():
     """Handle OAuth 2.0 authentication flow for Google Calendar API."""
