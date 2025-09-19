@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git checkout -b fix/clean-main-and-remove-outdated-settings)"
-    ],
-    "deny": [],
-    "ask": []
-  }
-}
