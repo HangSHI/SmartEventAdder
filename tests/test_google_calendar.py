@@ -24,70 +24,8 @@ class TestGoogleCalendarUnit(unittest.TestCase):
             'start_time': '14:30'
         }
     
-    @patch('modules.google_calendar.os.path.exists')
-    @patch('modules.google_calendar.Credentials.from_authorized_user_file')
-    def test_authenticate_with_existing_valid_token(self, mock_from_file, mock_exists):
-        """Test authenticate function when valid token.json exists."""
-        # Setup
-        mock_exists.return_value = True
-        mock_creds = MagicMock()
-        mock_creds.valid = True
-        mock_from_file.return_value = mock_creds
-        
-        # Execute
-        result = authenticate_google_services()
-        
-        # Assert
-        self.assertEqual(result, mock_creds)
-        mock_exists.assert_called_once_with('token.json')
-        mock_from_file.assert_called_once()
-    
-    @patch('modules.google_calendar.os.path.exists')
-    @patch('modules.google_calendar.Credentials.from_authorized_user_file')
-    @patch('modules.google_calendar.Request')
-    def test_authenticate_with_expired_token_refresh(self, mock_request, mock_from_file, mock_exists):
-        """Test authenticate function when token exists but is expired and can be refreshed."""
-        # Setup
-        mock_exists.return_value = True
-        mock_creds = MagicMock()
-        mock_creds.valid = False
-        mock_creds.expired = True
-        mock_creds.refresh_token = 'refresh_token'
-        mock_from_file.return_value = mock_creds
-        
-        with patch('builtins.open', mock_open()) as mock_file:
-            mock_creds.to_json.return_value = '{"token": "test"}'
-            
-            # Execute
-            result = authenticate_google_services()
-            
-            # Assert
-            self.assertEqual(result, mock_creds)
-            mock_creds.refresh.assert_called_once()
-            mock_file.assert_called_once_with('token.json', 'w')
-    
-    @patch('modules.google_calendar.os.path.exists')
-    @patch('modules.google_calendar.InstalledAppFlow.from_client_secrets_file')
-    def test_authenticate_new_flow(self, mock_flow_class, mock_exists):
-        """Test authenticate function when new OAuth flow is needed."""
-        # Setup
-        mock_exists.return_value = False
-        mock_flow = MagicMock()
-        mock_creds = MagicMock()
-        mock_flow.run_local_server.return_value = mock_creds
-        mock_flow_class.return_value = mock_flow
-        
-        with patch('builtins.open', mock_open()) as mock_file:
-            mock_creds.to_json.return_value = '{"token": "test"}'
-            
-            # Execute
-            result = authenticate_google_services()
-            
-            # Assert
-            self.assertEqual(result, mock_creds)
-            mock_flow_class.assert_called_once_with('credentials.json', ['https://www.googleapis.com/auth/calendar'])
-            mock_flow.run_local_server.assert_called_once_with(port=0)
-            mock_file.assert_called_once_with('token.json', 'w')
+    # Authentication tests are now in dedicated google_auth module tests
+    # This module only tests the Calendar() function
     
     def test_calendar_datetime_formatting(self):
         """Test that Calendar function formats datetime correctly."""
@@ -103,7 +41,7 @@ class TestGoogleCalendarUnit(unittest.TestCase):
         self.assertEqual(expected_start, "2024-12-15T14:30:00+09:00")
         self.assertEqual(expected_end, "2024-12-15T15:30:00+09:00")
     
-    @patch('modules.google_calendar.authenticate')
+    @patch('modules.google_calendar.authenticate_google_services')
     @patch('modules.google_calendar.build')
     @patch('builtins.print')
     def test_calendar_success(self, mock_print, mock_build, mock_auth):
@@ -139,7 +77,7 @@ class TestGoogleCalendarUnit(unittest.TestCase):
         self.assertEqual(event_body['end']['dateTime'], '2024-12-15T15:30:00+09:00')
         self.assertEqual(event_body['start']['timeZone'], 'Asia/Tokyo')
     
-    @patch('modules.google_calendar.authenticate')
+    @patch('modules.google_calendar.authenticate_google_services')
     @patch('modules.google_calendar.build')
     @patch('builtins.print')
     def test_calendar_http_error(self, mock_print, mock_build, mock_auth):
@@ -162,7 +100,7 @@ class TestGoogleCalendarUnit(unittest.TestCase):
         self.assertIsNone(result)
         mock_print.assert_called()
     
-    @patch('modules.google_calendar.authenticate')
+    @patch('modules.google_calendar.authenticate_google_services')
     @patch('modules.google_calendar.build')
     @patch('builtins.print')
     def test_calendar_generic_exception(self, mock_print, mock_build, mock_auth):
@@ -190,7 +128,7 @@ class TestGoogleCalendarUnit(unittest.TestCase):
             # Missing 'date' and 'start_time'
         }
         
-        with patch('modules.google_calendar.authenticate'), \
+        with patch('modules.google_calendar.authenticate_google_services'), \
              patch('modules.google_calendar.build'), \
              patch('builtins.print'):
             result = Calendar(incomplete_data)

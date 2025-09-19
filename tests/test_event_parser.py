@@ -67,10 +67,15 @@ class TestEventParser(unittest.TestCase):
         # Verify the result
         self.assertEqual(result, self.expected_response)
 
+    @patch('modules.event_parser.authenticate_google_services')
     @patch('modules.event_parser.vertexai')
     @patch('modules.event_parser.GenerativeModel')
-    def test_extract_event_details_with_null_values(self, mock_generative_model, mock_vertexai):
+    def test_extract_event_details_with_null_values(self, mock_generative_model, mock_vertexai, mock_auth):
         """Test event detail extraction with missing information."""
+        # Mock OAuth2 credentials
+        mock_creds = MagicMock()
+        mock_auth.return_value = mock_creds
+
         # Mock Vertex AI initialization
         mock_vertexai.init.return_value = None
 
@@ -99,10 +104,15 @@ class TestEventParser(unittest.TestCase):
         self.assertIsNone(result["start_time"])
         self.assertEqual(result["location"], "Office Building")
 
+    @patch('modules.event_parser.authenticate_google_services')
     @patch('modules.event_parser.vertexai')
     @patch('modules.event_parser.GenerativeModel')
-    def test_extract_event_details_json_parse_error(self, mock_generative_model, mock_vertexai):
+    def test_extract_event_details_json_parse_error(self, mock_generative_model, mock_vertexai, mock_auth):
         """Test handling of invalid JSON response."""
+        # Mock OAuth2 credentials
+        mock_creds = MagicMock()
+        mock_auth.return_value = mock_creds
+
         # Mock Vertex AI initialization
         mock_vertexai.init.return_value = None
 
@@ -119,10 +129,15 @@ class TestEventParser(unittest.TestCase):
         with self.assertRaises(json.JSONDecodeError):
             extract_event_details(self.project_id, self.location, self.sample_email)
 
+    @patch('modules.event_parser.authenticate_google_services')
     @patch('modules.event_parser.vertexai')
     @patch('modules.event_parser.GenerativeModel')
-    def test_extract_event_details_with_whitespace(self, mock_generative_model, mock_vertexai):
+    def test_extract_event_details_with_whitespace(self, mock_generative_model, mock_vertexai, mock_auth):
         """Test event detail extraction with response containing whitespace."""
+        # Mock OAuth2 credentials
+        mock_creds = MagicMock()
+        mock_auth.return_value = mock_creds
+
         # Mock Vertex AI initialization
         mock_vertexai.init.return_value = None
 
@@ -141,10 +156,15 @@ class TestEventParser(unittest.TestCase):
         # Verify the result (whitespace should be stripped)
         self.assertEqual(result, self.expected_response)
 
+    @patch('modules.event_parser.authenticate_google_services')
     @patch('modules.event_parser.vertexai')
     @patch('modules.event_parser.GenerativeModel')
-    def test_prompt_content(self, mock_generative_model, mock_vertexai):
+    def test_prompt_content(self, mock_generative_model, mock_vertexai, mock_auth):
         """Test that the prompt contains expected content."""
+        # Mock OAuth2 credentials
+        mock_creds = MagicMock()
+        mock_auth.return_value = mock_creds
+
         # Mock Vertex AI initialization
         mock_vertexai.init.return_value = None
 
