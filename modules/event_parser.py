@@ -5,7 +5,7 @@ from vertexai.generative_models import GenerativeModel
 
 def extract_event_details(project_id, location, email_text):
     """
-    Extract event details from email text using Google Cloud AI Platform Gemini Pro model.
+    Extract event details from email text using Google Cloud AI Platform Gemini Flash model.
 
     Args:
         project_id (str): GCP project ID
