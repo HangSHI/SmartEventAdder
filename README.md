@@ -48,10 +48,6 @@ SmartEventAdder/
 - **User Confirmation**: Review extracted details before creating calendar events
 - **Unified OAuth 2.0 Authentication**: Dedicated authentication module for all Google APIs with single sign-on
 - **Simplified Authentication Architecture**: Centralized auth logic in `google_auth.py` module
-- **JST Timezone Support**: Properly handles Japan Standard Time (JST/UTC+9)
-- **1-Hour Event Duration**: Creates events with a default duration of 1 hour
-- **Comprehensive Testing**: 80+ test cases including Gmail fetcher testing (13 tests), Gmail integration tests (6 tests), complete main.py orchestrator testing (36 tests), unit tests with mocking, and integration tests with real APIs
-- **Comprehensive Logging**: Detailed logging for debugging and monitoring
 
 ## Setup
 
@@ -99,50 +95,9 @@ pip install -r requirements.txt
    - Choose "Desktop application"
    - Download the credentials and save as `credentials.json` in the project root
 
-### 4. Unified Authentication (Recommended)
 
-**New Simplified Setup:** The project now uses a single OAuth2 flow for all Google services:
 
-- ✅ **No gcloud CLI required**
-- ✅ **Single authentication process**
-- ✅ **Consistent credential management**
-
-The first time you run the application, it will:
-1. Open a browser for Google OAuth consent
-2. Request permissions for Gmail, Calendar, and Cloud Platform (Vertex AI)
-3. Create a `token.json` file with all necessary permissions
-4. All subsequent runs use the stored credentials automatically
-
-### 4b. Legacy Google Cloud Setup (Optional)
-
-*Note: This is no longer required as OAuth2 handles Vertex AI authentication*
-
-<details>
-<summary>Click to expand legacy setup instructions</summary>
-
-**Using the provided script:**
-
-```bash
-# Run the setup script (will open browser windows for authentication)
-./setup_gcloud.sh
-```
-
-**Manual setup:**
-
-```bash
-# Authenticate with your personal Google account
-gcloud auth login
-
-# Set up Application Default Credentials
-gcloud auth application-default login
-
-# Set your project
-gcloud config set project YOUR_PROJECT_ID
-```
-
-</details>
-
-### 5. Environment Variables
+### 4. Environment Variables
 
 Create a `.env` file in the project root and add your configuration:
 
@@ -313,7 +268,7 @@ We provide sample email files for testing:
 
 ## Testing
 
-This project includes a comprehensive test suite with **80+ total test cases** covering all functionality:
+This project includes a comprehensive test suite with **77 total test cases** covering all functionality:
 
 ### Test Suite Overview
 
@@ -322,12 +277,11 @@ This project includes a comprehensive test suite with **80+ total test cases** c
 | `test_main.py` | 36 tests | Complete orchestrator workflow testing |
 | `test_event_parser.py` | 6 tests | Event parsing unit tests with mocking |
 | `test_event_parser_integration.py` | 6 tests | Real Vertex AI API integration tests |
-| `test_google_calendar.py` | 8 tests | Google Calendar API unit tests |
-| `test_gmail_fetcher.py` | 13 tests | Gmail API unit tests with new authentication |
+| `test_google_calendar.py` | 5 tests | Google Calendar API unit tests |
+| `test_gmail_fetcher.py` | 11 tests | Gmail API unit tests with unified authentication |
 | `test_gmail_fetcher_integration.py` | 6 tests | Gmail API integration tests with real data |
-| `test_gmail_api.py` | - | Gmail API response analysis and Message-ID testing |
-| `test_gmail_message_api.py` | - | Gmail Message-ID header testing and search functionality |
-| `test_calendar_integration.py` | 5+ tests | End-to-end calendar integration tests |
+| `test_gmail_message_api.py` | 2 tests | Gmail Message-ID header analysis and API exploration |
+| `test_calendar_integration.py` | 5 tests | End-to-end calendar integration tests |
 
 ### Main Orchestrator Tests (36 test cases)
 
@@ -345,18 +299,20 @@ python -m pytest tests/test_main.py::TestMainIntegration -v
 python -m pytest --cov=main tests/test_main.py
 ```
 
-**Main.py Test Coverage:**
-- **setup_logging()** - Logging configuration validation
-- **load_environment()** - Environment variable loading (success, missing, defaults)
-- **is_message_id_header()** - Message-ID header detection and validation
-- **get_email_input()** - Multiple input methods (file, text, interactive, Message-ID header, error handling)
-- **validate_email_input()** - Input sanitization, validation, security filtering
-- **validate_extracted_data()** - Data validation, date/time format checking
-- **display_event_details()** - Event display formatting with missing data handling
-- **get_user_confirmation()** - User interaction simulation and validation
-- **create_calendar_event()** - Calendar integration with comprehensive error scenarios
+**Main.py Test Coverage (36 tests in 2 test classes):**
+- **TestMainFunctions** - Core function testing with comprehensive mocking
+  - **setup_logging()** - Logging configuration validation
+  - **load_environment()** - Environment variable loading (success, missing, defaults)
+  - **is_message_id_header()** - Message-ID header detection and validation
+  - **get_email_input()** - Multiple input methods (file, text, interactive, Message-ID header, error handling)
+  - **validate_email_input()** - Input sanitization, validation, security filtering
+  - **validate_extracted_data()** - Data validation, date/time format checking
+  - **display_event_details()** - Event display formatting with missing data handling
+  - **get_user_confirmation()** - User interaction simulation and validation
+  - **create_calendar_event()** - Calendar integration with comprehensive error scenarios
+- **TestMainIntegration** - End-to-end workflow integration testing
 
-### Event Parser Tests (Unit & Integration)
+### Event Parser Tests (6 + 6 = 12 tests)
 
 ```bash
 # Unit tests with mocking (no external API calls)
@@ -369,31 +325,46 @@ python -m pytest tests/test_event_parser_integration.py -v
 python -m pytest tests/test_event_parser_integration.py -v -s
 ```
 
-### Gmail Fetcher Tests (19 test cases)
+**Event Parser Test Coverage:**
+- **TestEventParser** (6 unit tests) - Mocked AI Platform calls testing JSON parsing, error handling, and response validation
+- **TestEventParserIntegration** (6 integration tests) - Real Vertex AI API testing with various email formats and complexity levels
 
-Run comprehensive unit tests for the Gmail API integration module:
+### Gmail Fetcher Tests (11 unit + 6 integration = 17 tests)
 
 ```bash
 # Run all Gmail fetcher unit tests
 python -m pytest tests/test_gmail_fetcher.py -v
 
-# Run specific test categories
-python -m pytest tests/test_gmail_fetcher.py::TestGmailFetcherUnit -v
-python -m pytest tests/test_gmail_fetcher.py::TestGmailFetcherIntegration -v
+# Run Gmail fetcher integration tests
+python -m pytest tests/test_gmail_fetcher_integration.py -v
 
-# Run with coverage report (93% coverage)
+# Run with coverage report
 python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher.py --cov-report=term-missing
 ```
 
 **Gmail Fetcher Test Coverage:**
-- **Unified authentication** - Tests using the new `google_auth` module
-- **search_message_by_message_id_header()** - Message-ID header search functionality
-- **fetch_message_by_id()** - Gmail API message fetching with error handling
-- **fetch_email_by_message_id_header()** - Complete Message-ID to email content workflow
-- **fetch_email_by_gmail_id()** - Complete Gmail API message ID workflow
-- **extract_email_content()** - Email content extraction from Gmail message objects
-- **extract_message_body()** - Plain text and multipart message handling
-- **strip_html_tags()** - HTML email content processing
+- **TestGmailFetcherUnit** (11 tests) - Unit tests with mocked Gmail API calls
+  - **Unified authentication** - Tests using the new `google_auth` module
+  - **search_message_by_message_id_header()** - Message-ID header search functionality
+  - **fetch_message_by_id()** - Gmail API message fetching with error handling
+  - **fetch_email_by_message_id_header()** - Complete Message-ID to email content workflow
+  - **fetch_email_by_gmail_id()** - Complete Gmail API message ID workflow
+  - **extract_email_content()** - Email content extraction from Gmail message objects
+  - **extract_message_body()** - Plain text and multipart message handling
+  - **strip_html_tags()** - HTML email content processing
+- **TestGmailFetcherIntegration** (3 tests) + **TestGmailFetcherRealWorldScenarios** (3 tests) - Real Gmail API integration testing
+
+### Gmail Message API Tests (2 tests)
+
+```bash
+# Run Gmail Message-ID header analysis tests
+python -m pytest tests/test_gmail_message_api.py -v -s
+```
+
+**Gmail Message API Test Coverage:**
+- **Direct Gmail API exploration** - Understanding different Gmail ID formats
+- **Message-ID header research** - Testing the differences between Gmail URL IDs, API message IDs, and email Message-ID headers
+- **Key findings documentation** - Validates that Gmail web interface IDs cannot be used directly with Gmail API
 
 ### Gmail API Testing & Analysis
 
@@ -441,7 +412,7 @@ python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher_integratio
 - **Error handling** - Nonexistent message scenarios
 - **Permission verification** - Gmail scope validation
 
-### Google Calendar Tests
+### Google Calendar Tests (5 unit + 5 integration = 10 tests)
 
 ```bash
 # Run Google Calendar unit tests
@@ -451,10 +422,22 @@ python -m pytest tests/test_google_calendar.py -v
 python -m pytest tests/test_calendar_integration.py -v
 ```
 
+**Google Calendar Test Coverage:**
+- **TestGoogleCalendarUnit** (5 tests) - Unit tests with mocked Google Calendar API calls
+  - **Calendar event creation** - Success scenarios and error handling
+  - **DateTime formatting** - Proper timezone and format handling
+  - **HTTP error handling** - API error response testing
+  - **Missing field validation** - Input validation testing
+- **TestGoogleCalendarIntegration** (4 tests) + **TestGoogleCalendarIntegrationManual** (1 test) - Real Calendar API integration
+  - **Authentication integration** - OAuth2 flow testing
+  - **Event creation with real API** - End-to-end calendar integration
+  - **Edge case handling** - Special characters, edge times
+  - **Manual OAuth flow testing** - Interactive authentication testing
+
 ### Running All Tests
 
 ```bash
-# Run complete test suite (80+ tests)
+# Run complete test suite (77 tests)
 python -m pytest -v
 
 # Run with coverage report
@@ -491,67 +474,6 @@ python run_tests.py
 
 **Note:** All integration tests are designed to be safe and use minimal API quotas.
 
-## Authentication Flow
-
-### Unified OAuth2 Authentication
-SmartEventAdder now uses a **single authentication flow** for all Google services (Gmail, Calendar, and Vertex AI):
-
-1. **First run** will open a browser for Google OAuth consent
-2. **Grant permissions** for:
-   - Google Calendar access (create/read events)
-   - Gmail read access (fetch emails)
-   - Cloud Platform access (Vertex AI for event parsing)
-3. A `token.json` file will be created to store your access tokens
-4. **Subsequent runs** use the stored tokens automatically
-5. **All APIs** (Gmail, Calendar, Vertex AI) use the same credentials
-
-### Benefits of Unified Authentication:
-- ✅ **No gcloud CLI required** - eliminates need for `setup_gcloud.sh`
-- ✅ **Single authentication step** - one browser interaction for all services
-- ✅ **Consistent credential management** - same `credentials.json` and `token.json` for everything
-- ✅ **Simplified deployment** - no separate GCP authentication setup needed
-
-## Dependencies
-
-- **google-api-python-client**: Google Calendar and Gmail API client
-- **google-auth-httplib2**: Google authentication library
-- **google-auth-oauthlib**: OAuth 2.0 flow for Google APIs (unified authentication)
-- **google-cloud-aiplatform**: Google Vertex AI platform client
-- **python-dotenv**: Environment variable management
-- **python-dateutil**: Enhanced date/time handling
-- **requests**: HTTP requests library
-- **jsonschema**: JSON schema validation
-- **pytest**: Testing framework
-- **pytest-cov**: Test coverage reporting
-
-## Architecture
-
-SmartEventAdder follows a modular architecture with clear separation of concerns:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   google_auth   │    │  gmail_fetcher  │    │ google_calendar │
-│                 │    │                 │    │                 │
-│ OAuth2 Unified  │◄───┤ Email Fetching  │    │ Event Creation  │
-│ Authentication  │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         ▲                                             ▲
-         │                                             │
-         └─────────────┐                   ┌─────────┘
-                       │                   │
-                 ┌─────────────────┐      │
-                 │  event_parser   │      │
-                 │                 │      │
-                 │ AI Event        │──────┘
-                 │ Extraction      │
-                 └─────────────────┘
-```
-
-**Key Architectural Benefits:**
-- **Single Source of Truth**: `google_auth.py` handles all Google API authentication
-- **Clean Dependencies**: Each module imports from `google_auth`, no circular dependencies
-- **Unified Credentials**: Same OAuth2 token works for Gmail, Calendar, and Vertex AI
-- **Modular Design**: Each module has a single, well-defined responsibility
 
 ## Security Notes
 
