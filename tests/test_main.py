@@ -17,7 +17,8 @@ from main import (
     validate_extracted_data,
     display_event_details,
     get_user_confirmation,
-    create_calendar_event
+    create_calendar_event,
+    is_message_id_header
 )
 
 
@@ -93,6 +94,37 @@ class TestMainFunctions(unittest.TestCase):
         self.assertEqual(config['project_id'], 'test-project')
         self.assertEqual(config['location'], 'asia-northeast1')  # Default
 
+    def test_is_message_id_header_valid(self):
+        """Test valid Message-ID header detection."""
+        valid_message_ids = [
+            '684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail',
+            'abc123@example.com',
+            'test-message@server.local',
+            '12345@mail-server.domain.co.jp'
+        ]
+
+        for message_id in valid_message_ids:
+            with self.subTest(message_id=message_id):
+                self.assertTrue(is_message_id_header(message_id))
+
+    def test_is_message_id_header_invalid(self):
+        """Test invalid Message-ID header detection."""
+        invalid_message_ids = [
+            'not-a-message-id',  # No @
+            'has spaces@example.com',  # Contains spaces
+            'short@x',  # Too short
+            'no-domain@',  # No domain part
+            '@no-local-part.com',  # No local part
+            'multiple@at@signs.com',  # Multiple @ signs
+            'A' * 250 + '@toolong.com',  # Too long
+            'invalid@nodotordash',  # Domain has no dot or dash
+            ''  # Empty string
+        ]
+
+        for invalid_id in invalid_message_ids:
+            with self.subTest(invalid_id=invalid_id):
+                self.assertFalse(is_message_id_header(invalid_id))
+
     @patch('sys.argv', ['main.py', 'test_email.txt'])
     @patch('builtins.open', mock_open(read_data="Test email content"))
     def test_get_email_input_file(self):
@@ -131,6 +163,46 @@ class TestMainFunctions(unittest.TestCase):
         with patch('builtins.print'):  # Suppress print output
             with self.assertRaises(SystemExit):
                 get_email_input()
+
+    @patch('sys.argv', ['main.py', '684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail'])
+    @patch('main.fetch_email_by_message_id_header')
+    @patch('builtins.print')
+    def test_get_email_input_message_id_success(self, mock_print, mock_fetch):
+        """Test getting email input from Message-ID header successfully."""
+        mock_fetch.return_value = "Sample email content from Gmail"
+
+        result = get_email_input()
+
+        self.assertEqual(result, "Sample email content from Gmail")
+        mock_fetch.assert_called_once_with('684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail')
+
+    @patch('sys.argv', ['main.py', 'test@example.com'])
+    @patch('main.fetch_email_by_message_id_header')
+    @patch('builtins.print')
+    def test_get_email_input_message_id_fetch_failure(self, mock_print, mock_fetch):
+        """Test handling of Gmail fetch failure."""
+        mock_fetch.side_effect = Exception("Gmail API error")
+
+        with self.assertRaises(SystemExit):
+            get_email_input()
+
+        mock_fetch.assert_called_once_with('test@example.com')
+
+    @patch('sys.argv', ['main.py', 'abc123@mail-server.local'])
+    @patch('main.fetch_email_by_message_id_header')
+    @patch('builtins.print')
+    def test_get_email_input_message_id_with_suggestions(self, mock_print, mock_fetch):
+        """Test Gmail fetch failure with helpful suggestions."""
+        mock_fetch.side_effect = Exception("credentials not found")
+
+        with self.assertRaises(SystemExit):
+            get_email_input()
+
+        # Check that helpful suggestions were printed
+        calls = mock_print.call_args_list
+        output_text = ' '.join(str(call) for call in calls)
+        self.assertIn('Gmail API', output_text)
+        self.assertIn('credentials', output_text)
 
     def test_validate_email_input_success(self):
         """Test successful email input validation."""

@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 from modules.event_parser import extract_event_details
 from modules.google_calendar import Calendar
+from modules.gmail_fetcher import fetch_email_by_message_id_header
 
 
 def setup_logging():
@@ -52,6 +53,40 @@ def load_environment() -> Dict[str, str]:
     return config
 
 
+def is_message_id_header(text: str) -> bool:
+    """Check if text looks like a Message-ID header."""
+    text = text.strip()
+
+    # Message-ID headers typically contain @ and end with a domain-like string
+    if '@' not in text:
+        return False
+
+    # Should not contain spaces (Message-IDs are single tokens)
+    if ' ' in text:
+        return False
+
+    # Should not be too short or too long
+    if len(text) < 10 or len(text) > 200:
+        return False
+
+    # Should end with something that looks like a domain or server identifier
+    parts = text.split('@')
+    if len(parts) != 2:
+        return False
+
+    local_part, domain_part = parts
+
+    # Both local part and domain part should be non-empty
+    if not local_part or not domain_part:
+        return False
+
+    # Domain part should contain at least one dot or be a server identifier
+    if '.' not in domain_part and '-' not in domain_part:
+        return False
+
+    return True
+
+
 def get_email_input() -> str:
     """Get email content from various input sources."""
     if len(sys.argv) > 1:
@@ -63,6 +98,22 @@ def get_email_input() -> str:
                     return f.read()
             except FileNotFoundError:
                 print(f"Error: File '{sys.argv[1]}' not found.")
+                sys.exit(1)
+        elif is_message_id_header(sys.argv[1]):
+            # Message-ID header input
+            message_id = sys.argv[1]
+            print(f"📨 Detected Message-ID header: {message_id}")
+            print("🔍 Fetching email content from Gmail...")
+            try:
+                email_content = fetch_email_by_message_id_header(message_id)
+                print("✅ Email content fetched successfully!")
+                return email_content
+            except Exception as e:
+                print(f"❌ Failed to fetch email: {str(e)}")
+                print("\n💡 Suggestions:")
+                print("   1. Ensure Gmail API is enabled and credentials are set up")
+                print("   2. Check that the Message-ID exists in your Gmail")
+                print("   3. Verify you have proper Gmail API permissions")
                 sys.exit(1)
         else:
             # Direct text argument
