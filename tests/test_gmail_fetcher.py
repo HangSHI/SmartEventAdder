@@ -44,44 +44,8 @@ class TestGmailFetcherUnit(unittest.TestCase):
             }
         }
 
-    @patch('modules.gmail_fetcher.os.path.exists')
-    @patch('modules.gmail_fetcher.Credentials.from_authorized_user_file')
-    def test_authenticate_gmail_with_existing_valid_token(self, mock_from_file, mock_exists):
-        """Test authenticate_gmail function when valid token.json exists."""
-        # Setup
-        mock_exists.return_value = True
-        mock_creds = MagicMock()
-        mock_creds.valid = True
-        mock_from_file.return_value = mock_creds
-
-        # Execute
-        result = authenticate_gmail()
-
-        # Assert
-        self.assertEqual(result, mock_creds)
-        mock_exists.assert_called_once_with('token.json')
-        mock_from_file.assert_called_once()
-
-    @patch('modules.gmail_fetcher.os.path.exists')
-    @patch('modules.gmail_fetcher.InstalledAppFlow.from_client_secrets_file')
-    @patch('builtins.open', new_callable=mock_open)
-    def test_authenticate_gmail_new_credentials(self, mock_file, mock_flow, mock_exists):
-        """Test authenticate_gmail function when no valid credentials exist."""
-        # Setup
-        mock_exists.return_value = False
-        mock_flow_instance = MagicMock()
-        mock_creds = MagicMock()
-        mock_creds.to_json.return_value = '{"token": "test"}'
-        mock_flow_instance.run_local_server.return_value = mock_creds
-        mock_flow.return_value = mock_flow_instance
-
-        # Execute
-        result = authenticate_gmail()
-
-        # Assert
-        self.assertEqual(result, mock_creds)
-        mock_flow.assert_called_once()
-        mock_file.assert_called_once_with('token.json', 'w')
+    # Authentication tests are now in test_google_auth.py
+    # The gmail_fetcher module no longer handles authentication directly
 
     @patch('modules.gmail_fetcher.authenticate_google_services')
     @patch('modules.gmail_fetcher.build')
