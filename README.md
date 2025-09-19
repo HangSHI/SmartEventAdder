@@ -132,27 +132,58 @@ GOOGLE_CLOUD_LOCATION=asia-northeast1
 
 ### Gmail Fetcher Module
 
-The `gmail_fetcher.py` module provides Gmail API integration to fetch emails by message ID:
+The `gmail_fetcher.py` module provides Gmail API integration to fetch emails using thread IDs from Gmail URLs:
 
 ```python
-from modules.gmail_fetcher import fetch_email_by_url, fetch_email_by_id, extract_message_id_from_url
+from modules.gmail_fetcher import fetch_gmail_thread_json, extract_thread_id_from_url
 
-# Method 1: Fetch email directly from Gmail URL (Recommended)
+# Method 1: Fetch thread directly from Gmail URL (Recommended)
 gmail_url = "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpnHbpQPZzTKQgjzPtdsWrwpr"
-email_content = fetch_email_by_url(gmail_url)
+thread_data = fetch_gmail_thread_json(gmail_url)
 
-# Method 2: Step-by-step URL processing (Advanced)
-gmail_url = "https://mail.google.com/mail/u/0/#search/予約/FMfcgzQbgcQTZvmQLHXPxgKmCvJZFGKp"
-message_id = extract_message_id_from_url(gmail_url)  # Extract URL ID
-actual_id = resolve_gmail_url_to_message_id(gmail_url)  # Resolve to API ID
-email_content = fetch_email_by_id(actual_id)
+# Method 2: Extract thread ID and process manually
+thread_id = extract_thread_id_from_url(gmail_url)
+# Note: Thread ID from URL may not directly work with Gmail API
 
-# Method 3: Direct API message ID (if known)
-api_message_id = "1995b3c89509dde1"
-email_content = fetch_email_by_id(api_message_id)
-
-# The fetched email_content can then be passed to the event parser
+# The fetched thread_data contains complete Gmail API response with messages
 ```
+
+### Gmail Message ID Handling
+
+**Important Discovery:** Gmail uses different ID formats for different purposes:
+
+| ID Type | Format | Example | Use Case |
+|---------|--------|---------|----------|
+| **Gmail URL ID** | 32 chars | `FMfcgzQcpnPVtskckfTVKvTdmrrjVXGf` | Web interface only |
+| **Gmail API Message ID** | 16 chars | `1995785e0194fbb3` | API calls |
+| **Email Message-ID Header** | Email format | `2b630e07-5cd7-4791-9ff1-a4d0a58a56e3@seg.co.jp` | Email headers |
+
+**To find a message by Message-ID header:**
+
+```python
+from modules.gmail_fetcher import authenticate_gmail
+from googleapiclient.discovery import build
+
+# Search for message using Message-ID header
+creds = authenticate_gmail()
+service = build('gmail', 'v1', credentials=creds)
+
+message_id_header = '2b630e07-5cd7-4791-9ff1-a4d0a58a56e3@seg.co.jp'
+search_query = f'rfc822msgid:{message_id_header}'
+
+result = service.users().messages().list(userId='me', q=search_query, maxResults=1).execute()
+messages = result.get('messages', [])
+
+if messages:
+    gmail_message_id = messages[0]['id']
+    message = service.users().messages().get(userId='me', id=gmail_message_id, format='full').execute()
+    # Process the message...
+```
+
+**Key Limitations:**
+- Gmail URL IDs cannot be used directly with Gmail API
+- Email Message-ID headers require search-based retrieval
+- Only Gmail API message IDs work with direct `messages.get()` calls
 
 ### Google Calendar Module
 
@@ -253,6 +284,8 @@ This project includes a comprehensive test suite with **75+ total test cases** c
 | `test_google_calendar.py` | 8 tests | Google Calendar API unit tests |
 | `test_gmail_fetcher.py` | 19 tests | Gmail API integration unit tests (updated) |
 | `test_gmail_fetcher_integration.py` | 9 tests | Gmail API integration tests with real data |
+| `test_gmail_api.py` | - | Gmail API response analysis and Message-ID testing |
+| `test_gmail_message_api.py` | - | Gmail Message-ID header testing and search functionality |
 | `test_integration.py` | 5+ tests | End-to-end integration tests |
 
 ### Main Orchestrator Tests (31 test cases)
@@ -320,6 +353,22 @@ python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher.py --cov-r
 - **strip_html_tags()** - HTML email content processing
 - **validate_message_id()** - Message ID format validation (updated for new formats)
 - **extract_message_id_from_url()** - URL parsing for Gmail links (updated regex)
+
+### Gmail API Testing & Analysis
+
+Run Gmail API analysis tests to understand message ID handling:
+
+```bash
+# Test Gmail API response structure and real message retrieval
+PYTHONPATH=/Users/ko.shi/Projects/SmartEventAdder python tests/test_gmail_api.py
+
+# Test Gmail Message-ID header search functionality
+PYTHONPATH=/Users/ko.shi/Projects/SmartEventAdder python tests/test_gmail_message_api.py
+```
+
+**Gmail API Test Files:**
+- `test_gmail_api.py` - Analyzes Gmail API JSON response structure and demonstrates proper thread/message retrieval
+- `test_gmail_message_api.py` - Tests Message-ID header search using `rfc822msgid:` query and demonstrates the differences between Gmail URL IDs, API message IDs, and email Message-ID headers
 
 ### Gmail Fetcher Integration Tests
 
