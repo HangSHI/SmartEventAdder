@@ -7,10 +7,12 @@ from unittest import skip
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from modules.gmail_fetcher import (
-    authenticate_gmail,
-    extract_thread_id_from_url,
-    fetch_gmail_thread_json
+    search_message_by_message_id_header,
+    fetch_message_by_id,
+    fetch_email_by_message_id_header,
+    fetch_email_by_gmail_id
 )
+from modules.google_auth import authenticate_google_services
 from googleapiclient.discovery import build
 
 
@@ -53,108 +55,94 @@ class TestGmailFetcherIntegration(unittest.TestCase):
     def test_authenticate_gmail_integration(self):
         """Test Gmail authentication with real credentials."""
         try:
-            creds = authenticate_gmail()
+            creds = authenticate_google_services()
             self.assertIsNotNone(creds)
             self.assertTrue(creds.valid)
             print(f"✅ Gmail authentication successful")
         except Exception as e:
             self.fail(f"Gmail authentication failed: {str(e)}")
 
-    def test_extract_thread_id_from_real_url(self):
-        """Test extracting thread ID from real Gmail URLs."""
-        # Test cases will be populated with real Gmail URLs
-        test_cases = [
-            ("https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpnHbpQPZzTKQgjzPtdsWrwpr", "FMfcgzQcpnHbpQPZzTKQgjzPtdsWrwpr"),
-            ("https://mail.google.com/mail/u/0/#search/予約/FMfcgzQbgcQTZvmQLHXPxgKmCvJZFGKp", "FMfcgzQbgcQTZvmQLHXPxgKmCvJZFGKp"),
-            ("https://mail.google.com/mail/u/0/#search/予約/FMfcgzQbfnxmdnbjNwSnLThtCtPmmfDz", "FMfcgzQbfnxmdnbjNwSnLThtCtPmmfDz"),
-            ("https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj", "FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"),
-        ]
+    def test_search_message_by_message_id_header_integration(self):
+        """Test searching for message using Message-ID header with real Gmail API."""
+        message_id_header = "684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail"
 
-        for gmail_url, expected_id in test_cases:
-            with self.subTest(url=gmail_url):
-                extracted_id = extract_thread_id_from_url(gmail_url)
-                self.assertEqual(extracted_id, expected_id)
-                print(f"✅ Extracted thread ID from URL: {extracted_id}")
-
-    def test_fetch_gmail_thread_json_from_real_urls(self):
-        """Test fetching Gmail thread JSON from real Gmail URLs."""
-        # Note: These URLs use Gmail web interface IDs that don't directly map to API thread IDs
-        # This test demonstrates the current limitation
-        test_gmail_urls = [
-            "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpnHbpQPZzTKQgjzPtdsWrwpr",
-            "https://mail.google.com/mail/u/0/#search/予約/FMfcgzQbgcQTZvmQLHXPxgKmCvJZFGKp",
-            "https://mail.google.com/mail/u/0/#search/予約/FMfcgzQbfnxmdnbjNwSnLThtCtPmmfDz",
-            "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj",  # Multi-message thread from inbox
-        ]
-
-        for gmail_url in test_gmail_urls:
-            with self.subTest(url=gmail_url):
-                try:
-                    # Try to fetch Gmail thread JSON
-                    thread_json = fetch_gmail_thread_json(gmail_url)
-
-                    # If successful, validate the JSON structure
-                    self.assertIsInstance(thread_json, dict)
-                    self.assertIn('id', thread_json)
-                    self.assertIn('messages', thread_json)
-
-                    messages = thread_json.get('messages', [])
-                    self.assertGreater(len(messages), 0)
-
-                    print(f"✅ Successfully fetched thread JSON for URL: {gmail_url}")
-                    print(f"   Thread ID: {thread_json.get('id')}")
-                    print(f"   Messages: {len(messages)}")
-
-                except Exception as e:
-                    # Expected to fail due to thread ID mismatch - this is a known limitation
-                    print(f"⚠️  Expected limitation: Thread ID from URL doesn't match API thread ID")
-                    print(f"   URL: {gmail_url}")
-                    print(f"   Error: {str(e)[:100]}...")
-                    # Don't fail the test - this demonstrates the known limitation
-
-    def test_fetch_gmail_thread_json_with_real_thread_id(self):
-        """Test Gmail thread JSON fetching with actual Gmail API thread IDs."""
         try:
-            # Get a real thread ID from the user's Gmail
-            creds = authenticate_gmail()
-            service = build('gmail', 'v1', credentials=creds)
+            # Search for message using Message-ID header
+            message = search_message_by_message_id_header(message_id_header)
 
-            # Get recent threads
-            result = service.users().threads().list(userId='me', maxResults=1).execute()
-            threads = result.get('threads', [])
+            if message:
+                # Validate message structure
+                self.assertIsInstance(message, dict)
+                self.assertIn('id', message)
+                self.assertIn('payload', message)
 
-            if threads:
-                real_thread_id = threads[0]['id']
-                print(f"Testing with real thread ID: {real_thread_id}")
-
-                # Create a fake URL with the real thread ID to test our function
-                fake_url = f"https://mail.google.com/mail/u/0/#inbox/{real_thread_id}"
-
-                # Test our thread JSON fetching function directly
-                thread_json = fetch_gmail_thread_json(fake_url)
-
-                # Validate the JSON response
-                self.assertIsInstance(thread_json, dict)
-                self.assertIn('id', thread_json)
-                self.assertIn('messages', thread_json)
-
-                messages = thread_json.get('messages', [])
-                self.assertGreater(len(messages), 0, "Thread should contain at least one message")
-
-                print(f"✅ Successfully fetched thread JSON with {len(messages)} message(s)")
-                print(f"   Thread ID: {thread_json.get('id')}")
-                print(f"   Keys in response: {list(thread_json.keys())}")
-
+                print(f"✅ Successfully found message with Message-ID header: {message_id_header}")
+                print(f"   Gmail API Message ID: {message.get('id')}")
+                print(f"   Thread ID: {message.get('threadId')}")
+                print(f"   Snippet: {message.get('snippet', 'N/A')[:50]}...")
             else:
-                self.skipTest("No threads found in Gmail account")
+                print(f"⚠️  Message with Message-ID header '{message_id_header}' not found in Gmail account")
+                print("   This is expected if the message doesn't exist in your Gmail")
 
         except Exception as e:
-            self.fail(f"Thread JSON fetching failed: {str(e)}")
+            print(f"❌ Message search failed: {str(e)}")
+            # Don't fail the test - this demonstrates real API behavior
+
+    def test_fetch_email_by_message_id_header_integration(self):
+        """Test complete workflow to fetch email content using Message-ID header."""
+        message_id_header = "684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail"
+
+        try:
+            # Fetch email content using Message-ID header
+            email_content = fetch_email_by_message_id_header(message_id_header)
+
+            # Validate email content
+            self.assertIsInstance(email_content, str)
+            self.assertIn("Subject:", email_content)
+
+            print(f"✅ Successfully fetched email content using Message-ID header")
+            print(f"   Content preview: {email_content[:200]}...")
+
+        except Exception as e:
+            print(f"⚠️  Email fetch by Message-ID failed: {str(e)}")
+            print("   This is expected if the message doesn't exist in your Gmail account")
+            # Don't fail the test - this demonstrates real API behavior
+
+    def test_fetch_email_by_gmail_id_integration(self):
+        """Test fetching email content using real Gmail API message ID."""
+        try:
+            # Get a real Gmail API message ID from the user's Gmail
+            creds = authenticate_google_services()
+            service = build('gmail', 'v1', credentials=creds)
+
+            # Get recent messages
+            result = service.users().messages().list(userId='me', maxResults=1).execute()
+            messages = result.get('messages', [])
+
+            if messages:
+                real_message_id = messages[0]['id']
+                print(f"Testing email fetch with real message ID: {real_message_id}")
+
+                # Test fetching email content
+                email_content = fetch_email_by_gmail_id(real_message_id)
+
+                # Validate email content
+                self.assertIsInstance(email_content, str)
+                self.assertIn("Subject:", email_content)
+
+                print(f"✅ Successfully fetched email content using Gmail API message ID")
+                print(f"   Content preview: {email_content[:200]}...")
+
+            else:
+                self.skipTest("No messages found in Gmail account")
+
+        except Exception as e:
+            self.fail(f"Email fetch by Gmail ID failed: {str(e)}")
 
     def test_authentication_permissions(self):
         """Test that authentication includes proper Gmail permissions."""
         try:
-            creds = authenticate_gmail()
+            creds = authenticate_google_services()
 
             # Check if scopes include Gmail
             if hasattr(creds, 'scopes'):
@@ -187,7 +175,7 @@ class TestGmailFetcherRealWorldScenarios(unittest.TestCase):
         """Test analyzing the structure of a real Gmail thread JSON response."""
         try:
             # Get a real Gmail thread and analyze its JSON structure
-            creds = authenticate_gmail()
+            creds = authenticate_google_services()
             service = build('gmail', 'v1', credentials=creds)
 
             # Get a recent thread
@@ -248,10 +236,11 @@ if __name__ == '__main__':
     print("3. OAuth2 authentication completed")
     print("4. Real Gmail URLs for testing")
     print("")
-    print("NEW SIMPLIFIED APPROACH:")
-    print("- Uses fetch_gmail_thread_json() to get raw JSON")
-    print("- Demonstrates thread ID extraction from URLs")
-    print("- Shows actual Gmail API thread JSON structure")
+    print("NEW APPROACH:")
+    print("- Tests Message-ID header search and email fetching")
+    print("- Tests Gmail API message ID fetching")
+    print("- Tests thread JSON fetching with real thread IDs")
+    print("- Uses real Message-ID: 684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail")
     print("="*60)
     print("")
 

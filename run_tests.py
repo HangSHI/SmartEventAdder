@@ -102,7 +102,7 @@ def main():
         
         success = run_command([
             'python', '-m', 'pytest',
-            'tests/test_integration.py::TestGoogleCalendarIntegration',
+            'tests/test_calendar_integration.py::TestGoogleCalendarIntegration',
             '-v', '--tb=short', '-s'
         ], "Integration Tests")
         
@@ -125,7 +125,7 @@ def main():
             print("\n🔗 Running Integration Tests...")
             integration_success = run_command([
                 'python', '-m', 'pytest',
-                'tests/test_integration.py::TestGoogleCalendarIntegration',
+                'tests/test_calendar_integration.py::TestGoogleCalendarIntegration',
                 '-v', '--tb=short', '-s'
             ], "Integration Tests")
         else:

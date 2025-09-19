@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 # Add the parent directory to the path so we can import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from modules.google_calendar import authenticate, Calendar
+from modules.google_calendar import Calendar
+from modules.google_auth import authenticate_google_services
 
 
 class TestGoogleCalendarIntegration(unittest.TestCase):
@@ -46,7 +47,7 @@ class TestGoogleCalendarIntegration(unittest.TestCase):
     def test_authenticate_integration(self):
         """Test authentication with real credentials."""
         try:
-            creds = authenticate()
+            creds = authenticate_google_services()
             self.assertIsNotNone(creds)
             self.assertTrue(creds.valid)
             print(f"✓ Authentication successful")
@@ -140,7 +141,7 @@ class TestGoogleCalendarIntegrationManual(unittest.TestCase):
         print("="*50)
         
         try:
-            creds = authenticate()
+            creds = authenticate_google_services()
             self.assertIsNotNone(creds)
             self.assertTrue(creds.valid)
             print("✓ OAuth flow completed successfully")

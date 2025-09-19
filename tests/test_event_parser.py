@@ -34,10 +34,15 @@ class TestEventParser(unittest.TestCase):
             "location": "Conference Room A, 123 Main Street, New York, NY"
         }
 
+    @patch('modules.event_parser.authenticate_google_services')
     @patch('modules.event_parser.vertexai')
     @patch('modules.event_parser.GenerativeModel')
-    def test_extract_event_details_success(self, mock_generative_model, mock_vertexai):
+    def test_extract_event_details_success(self, mock_generative_model, mock_vertexai, mock_auth):
         """Test successful event detail extraction."""
+        # Mock OAuth2 credentials
+        mock_creds = MagicMock()
+        mock_auth.return_value = mock_creds
+
         # Mock Vertex AI initialization
         mock_vertexai.init.return_value = None
 
@@ -54,7 +59,8 @@ class TestEventParser(unittest.TestCase):
         result = extract_event_details(self.project_id, self.location, self.sample_email)
 
         # Verify the mocks were called correctly
-        mock_vertexai.init.assert_called_once_with(project=self.project_id, location=self.location)
+        mock_auth.assert_called_once()
+        mock_vertexai.init.assert_called_once_with(project=self.project_id, location=self.location, credentials=mock_creds)
         mock_generative_model.assert_called_once_with("gemini-1.5-flash")
         mock_model.generate_content.assert_called_once()
 

@@ -28,7 +28,7 @@ KEY FINDINGS:
 
 import json
 import base64
-from modules.gmail_fetcher import authenticate_gmail
+from modules.google_auth import authenticate_google_services
 from googleapiclient.discovery import build
 
 
@@ -51,7 +51,7 @@ def test_gmail_message_get():
         print("=" * 80)
 
         # Authenticate with Gmail API
-        creds = authenticate_gmail()
+        creds = authenticate_google_services()
         service = build('gmail', 'v1', credentials=creds)
 
         # Call messages.get() API as recommended by Gemini
@@ -122,7 +122,7 @@ def search_message_by_message_id_header():
         print("=" * 80)
 
         # Authenticate
-        creds = authenticate_gmail()
+        creds = authenticate_google_services()
         service = build('gmail', 'v1', credentials=creds)
 
         # Search for message by Message-ID header
@@ -195,7 +195,7 @@ def test_with_real_message_id():
         print("=" * 80)
 
         # Authenticate and get a real message ID
-        creds = authenticate_gmail()
+        creds = authenticate_google_services()
         service = build('gmail', 'v1', credentials=creds)
 
         # Get recent messages

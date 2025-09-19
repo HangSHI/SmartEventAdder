@@ -1,11 +1,14 @@
 import json
 import vertexai
 from vertexai.generative_models import GenerativeModel
+from .google_auth import authenticate_google_services
 
 
 def extract_event_details(project_id, location, email_text):
     """
     Extract event details from email text using Google Cloud AI Platform Gemini Flash model.
+
+    Uses OAuth2 credentials for authentication instead of default credentials.
 
     Args:
         project_id (str): GCP project ID
@@ -15,8 +18,11 @@ def extract_event_details(project_id, location, email_text):
     Returns:
         dict: Dictionary containing extracted event details
     """
-    # Initialize Vertex AI
-    vertexai.init(project=project_id, location=location)
+    # Get OAuth2 credentials
+    creds = authenticate_google_services()
+
+    # Initialize Vertex AI with OAuth2 credentials
+    vertexai.init(project=project_id, location=location, credentials=creds)
 
     # Initialize the Gemini Pro model (using the newer model name)
     model = GenerativeModel("gemini-1.5-flash")

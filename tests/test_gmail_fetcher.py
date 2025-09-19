@@ -2,16 +2,21 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import os
 import sys
-import json
+import base64
 
 # Add the parent directory to the path so we can import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from modules.gmail_fetcher import (
-    authenticate_gmail,
-    extract_thread_id_from_url,
-    fetch_gmail_thread_json
+    search_message_by_message_id_header,
+    fetch_message_by_id,
+    extract_email_content,
+    extract_message_body,
+    strip_html_tags,
+    fetch_email_by_message_id_header,
+    fetch_email_by_gmail_id
 )
+from modules.google_auth import authenticate_google_services
 from googleapiclient.errors import HttpError
 
 
@@ -20,8 +25,24 @@ class TestGmailFetcherUnit(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures before each test method."""
-        self.sample_gmail_url = "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"
-        self.sample_thread_id = "FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"
+        self.sample_message_id_header = "684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail"
+        self.sample_gmail_message_id = "1995b3c89509dde1"
+        self.sample_gmail_message = {
+            'id': '1995b3c89509dde1',
+            'threadId': 'FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj',
+            'payload': {
+                'headers': [
+                    {'name': 'Subject', 'value': 'Test Meeting Invite'},
+                    {'name': 'From', 'value': 'sender@example.com'},
+                    {'name': 'Date', 'value': 'Mon, 15 Jan 2024 10:00:00 +0000'},
+                    {'name': 'Message-ID', 'value': self.sample_message_id_header}
+                ],
+                'mimeType': 'text/plain',
+                'body': {
+                    'data': base64.urlsafe_b64encode(b'Meeting tomorrow at 2pm in room A').decode()
+                }
+            }
+        }
 
     @patch('modules.gmail_fetcher.os.path.exists')
     @patch('modules.gmail_fetcher.Credentials.from_authorized_user_file')
@@ -62,147 +83,214 @@ class TestGmailFetcherUnit(unittest.TestCase):
         mock_flow.assert_called_once()
         mock_file.assert_called_once_with('token.json', 'w')
 
-    def test_extract_thread_id_from_url_success(self):
-        """Test extracting thread ID from Gmail URLs."""
-        # Test cases
-        test_cases = [
-            ("https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj", "FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"),
-            ("https://mail.google.com/mail/u/0/#sent/FMfcgzQbgcQTZvmQLHXPxgKmCvJZFGKp", "FMfcgzQbgcQTZvmQLHXPxgKmCvJZFGKp"),
-            ("https://mail.google.com/mail/u/0/#search/予約/FMfcgzQbfnxmdnbjNwSnLThtCtPmmfDz", "FMfcgzQbfnxmdnbjNwSnLThtCtPmmfDz"),
-        ]
-
-        for url, expected_id in test_cases:
-            with self.subTest(url=url):
-                result = extract_thread_id_from_url(url)
-                self.assertEqual(result, expected_id)
-
-    def test_extract_thread_id_from_url_invalid(self):
-        """Test extracting thread ID from invalid URLs."""
-        # Test cases
-        invalid_urls = [
-            "https://mail.google.com/mail/u/0/#inbox/",  # No ID
-            "https://example.com/not-gmail",  # Not Gmail
-            "invalid-url",  # Not a URL
-            "",  # Empty
-        ]
-
-        for url in invalid_urls:
-            with self.subTest(url=url):
-                result = extract_thread_id_from_url(url)
-                self.assertIsNone(result)
-
-    @patch('modules.gmail_fetcher.authenticate_gmail')
+    @patch('modules.gmail_fetcher.authenticate_google_services')
     @patch('modules.gmail_fetcher.build')
-    @patch('modules.gmail_fetcher.extract_thread_id_from_url')
-    def test_fetch_gmail_thread_json_success(self, mock_extract, mock_build, mock_auth):
-        """Test successful Gmail thread JSON fetching."""
+    def test_search_message_by_message_id_header_success(self, mock_build, mock_auth):
+        """Test successful message search using Message-ID header."""
         # Setup
-        gmail_url = "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"
-        thread_id = "FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"
-
-        mock_extract.return_value = thread_id
         mock_auth.return_value = MagicMock()
         mock_service = MagicMock()
         mock_build.return_value = mock_service
 
-        # Mock thread JSON response
-        expected_thread_json = {
-            'id': thread_id,
-            'historyId': '12345',
-            'messages': [
+        # Mock search results
+        mock_list = MagicMock()
+        mock_list.execute.return_value = {'messages': [{'id': self.sample_gmail_message_id}]}
+        mock_service.users().messages().list.return_value = mock_list
+
+        # Mock message get
+        mock_get = MagicMock()
+        mock_get.execute.return_value = self.sample_gmail_message
+        mock_service.users().messages().get.return_value = mock_get
+
+        # Execute
+        result = search_message_by_message_id_header(self.sample_message_id_header)
+
+        # Assert
+        self.assertEqual(result, self.sample_gmail_message)
+        mock_service.users().messages().list.assert_called_once_with(
+            userId='me',
+            q=f'rfc822msgid:{self.sample_message_id_header}',
+            maxResults=1
+        )
+        mock_service.users().messages().get.assert_called_once_with(
+            userId='me',
+            id=self.sample_gmail_message_id,
+            format='full'
+        )
+
+    @patch('modules.gmail_fetcher.authenticate_google_services')
+    @patch('modules.gmail_fetcher.build')
+    def test_search_message_by_message_id_header_not_found(self, mock_build, mock_auth):
+        """Test message search when Message-ID header is not found."""
+        # Setup
+        mock_auth.return_value = MagicMock()
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        # Mock empty search results
+        mock_list = MagicMock()
+        mock_list.execute.return_value = {'messages': []}
+        mock_service.users().messages().list.return_value = mock_list
+
+        # Execute
+        result = search_message_by_message_id_header(self.sample_message_id_header)
+
+        # Assert
+        self.assertIsNone(result)
+
+    @patch('modules.gmail_fetcher.authenticate_google_services')
+    @patch('modules.gmail_fetcher.build')
+    def test_fetch_message_by_id_success(self, mock_build, mock_auth):
+        """Test successful message fetching by Gmail API message ID."""
+        # Setup
+        mock_auth.return_value = MagicMock()
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        mock_get = MagicMock()
+        mock_get.execute.return_value = self.sample_gmail_message
+        mock_service.users().messages().get.return_value = mock_get
+
+        # Execute
+        result = fetch_message_by_id(self.sample_gmail_message_id)
+
+        # Assert
+        self.assertEqual(result, self.sample_gmail_message)
+        mock_service.users().messages().get.assert_called_once_with(
+            userId='me',
+            id=self.sample_gmail_message_id,
+            format='full'
+        )
+
+    @patch('modules.gmail_fetcher.authenticate_google_services')
+    @patch('modules.gmail_fetcher.build')
+    def test_fetch_message_by_id_not_found(self, mock_build, mock_auth):
+        """Test message fetching when message ID doesn't exist."""
+        # Setup
+        mock_auth.return_value = MagicMock()
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+
+        # Create mock HttpError for 404
+        mock_error = HttpError(MagicMock(status=404), b'Not Found')
+        mock_service.users().messages().get().execute.side_effect = mock_error
+
+        # Execute & Assert
+        with self.assertRaises(Exception) as context:
+            fetch_message_by_id(self.sample_gmail_message_id)
+
+        self.assertIn("not found", str(context.exception))
+
+    def test_extract_email_content(self):
+        """Test extraction of email content from Gmail message object."""
+        # Execute
+        result = extract_email_content(self.sample_gmail_message)
+
+        # Assert
+        self.assertIn("Subject: Test Meeting Invite", result)
+        self.assertIn("From: sender@example.com", result)
+        self.assertIn("Date: Mon, 15 Jan 2024 10:00:00 +0000", result)
+        self.assertIn(f"Message-ID: {self.sample_message_id_header}", result)
+        self.assertIn("Meeting tomorrow at 2pm in room A", result)
+
+    def test_extract_message_body_plain_text(self):
+        """Test extraction of plain text message body."""
+        # Setup
+        payload = {
+            'mimeType': 'text/plain',
+            'body': {
+                'data': base64.urlsafe_b64encode(b'This is a test message').decode()
+            }
+        }
+
+        # Execute
+        result = extract_message_body(payload)
+
+        # Assert
+        self.assertEqual(result, 'This is a test message')
+
+    def test_extract_message_body_multipart(self):
+        """Test extraction from multipart message."""
+        # Setup
+        payload = {
+            'parts': [
                 {
-                    'id': '1995b3c89509dde1',
-                    'threadId': thread_id,
-                    'payload': {
-                        'headers': [
-                            {'name': 'Subject', 'value': 'Test Thread'},
-                        ]
+                    'mimeType': 'text/plain',
+                    'body': {
+                        'data': base64.urlsafe_b64encode(b'Part 1 ').decode()
+                    }
+                },
+                {
+                    'mimeType': 'text/plain',
+                    'body': {
+                        'data': base64.urlsafe_b64encode(b'Part 2').decode()
                     }
                 }
             ]
         }
 
-        mock_thread_get = MagicMock()
-        mock_thread_get.execute.return_value = expected_thread_json
-        mock_service.users().threads().get.return_value = mock_thread_get
-
         # Execute
-        result = fetch_gmail_thread_json(gmail_url)
+        result = extract_message_body(payload)
 
         # Assert
-        self.assertEqual(result, expected_thread_json)
-        mock_extract.assert_called_once_with(gmail_url)
-        mock_service.users().threads().get.assert_called_once_with(
-            userId='me',
-            id=thread_id,
-            format='full'
-        )
+        self.assertEqual(result, 'Part 1 Part 2')
 
-    @patch('modules.gmail_fetcher.extract_thread_id_from_url')
-    def test_fetch_gmail_thread_json_invalid_url(self, mock_extract):
-        """Test Gmail thread JSON fetching with invalid URL."""
+    def test_strip_html_tags(self):
+        """Test HTML tag removal from email content."""
         # Setup
-        gmail_url = "https://invalid-url.com"
-        mock_extract.return_value = None
+        html_content = '<p>Hello <b>world</b>!</p><br>&nbsp;&amp;'
+
+        # Execute
+        result = strip_html_tags(html_content)
+
+        # Assert
+        self.assertEqual(result, 'Hello world! &')
+
+    @patch('modules.gmail_fetcher.search_message_by_message_id_header')
+    @patch('modules.gmail_fetcher.extract_email_content')
+    def test_fetch_email_by_message_id_header_success(self, mock_extract, mock_search):
+        """Test complete workflow for fetching email by Message-ID header."""
+        # Setup
+        expected_content = "Subject: Test Email\n\nEmail content here"
+        mock_search.return_value = self.sample_gmail_message
+        mock_extract.return_value = expected_content
+
+        # Execute
+        result = fetch_email_by_message_id_header(self.sample_message_id_header)
+
+        # Assert
+        self.assertEqual(result, expected_content)
+        mock_search.assert_called_once_with(self.sample_message_id_header)
+        mock_extract.assert_called_once_with(self.sample_gmail_message)
+
+    @patch('modules.gmail_fetcher.search_message_by_message_id_header')
+    def test_fetch_email_by_message_id_header_not_found(self, mock_search):
+        """Test workflow when Message-ID header is not found."""
+        # Setup
+        mock_search.return_value = None
 
         # Execute & Assert
         with self.assertRaises(Exception) as context:
-            fetch_gmail_thread_json(gmail_url)
+            fetch_email_by_message_id_header(self.sample_message_id_header)
 
-        self.assertIn("Could not extract thread ID from Gmail URL", str(context.exception))
-        mock_extract.assert_called_once_with(gmail_url)
+        self.assertIn("No message found with Message-ID header", str(context.exception))
 
-    @patch('modules.gmail_fetcher.authenticate_gmail')
-    @patch('modules.gmail_fetcher.build')
-    @patch('modules.gmail_fetcher.extract_thread_id_from_url')
-    def test_fetch_gmail_thread_json_thread_not_found(self, mock_extract, mock_build, mock_auth):
-        """Test Gmail thread JSON fetching when thread is not found."""
+    @patch('modules.gmail_fetcher.fetch_message_by_id')
+    @patch('modules.gmail_fetcher.extract_email_content')
+    def test_fetch_email_by_gmail_id_success(self, mock_extract, mock_fetch):
+        """Test complete workflow for fetching email by Gmail API message ID."""
         # Setup
-        gmail_url = "https://mail.google.com/mail/u/0/#inbox/nonexistent"
-        thread_id = "nonexistent"
+        expected_content = "Subject: Test Email\n\nEmail content here"
+        mock_fetch.return_value = self.sample_gmail_message
+        mock_extract.return_value = expected_content
 
-        mock_extract.return_value = thread_id
-        mock_auth.return_value = MagicMock()
-        mock_service = MagicMock()
-        mock_build.return_value = mock_service
+        # Execute
+        result = fetch_email_by_gmail_id(self.sample_gmail_message_id)
 
-        # Mock 404 HttpError
-        mock_error = HttpError(MagicMock(status=404), b'Not Found')
-        mock_thread_get = MagicMock()
-        mock_thread_get.execute.side_effect = mock_error
-        mock_service.users().threads().get.return_value = mock_thread_get
-
-        # Execute & Assert
-        with self.assertRaises(Exception) as context:
-            fetch_gmail_thread_json(gmail_url)
-
-        self.assertIn("not found", str(context.exception))
-
-    @patch('modules.gmail_fetcher.authenticate_gmail')
-    @patch('modules.gmail_fetcher.build')
-    @patch('modules.gmail_fetcher.extract_thread_id_from_url')
-    def test_fetch_gmail_thread_json_access_denied(self, mock_extract, mock_build, mock_auth):
-        """Test Gmail thread JSON fetching when access is denied."""
-        # Setup
-        gmail_url = "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"
-        thread_id = "FMfcgzQcpKXrSxfnbLfGFDksqcvNBgKj"
-
-        mock_extract.return_value = thread_id
-        mock_auth.return_value = MagicMock()
-        mock_service = MagicMock()
-        mock_build.return_value = mock_service
-
-        # Mock 403 HttpError
-        mock_error = HttpError(MagicMock(status=403), b'Access Denied')
-        mock_thread_get = MagicMock()
-        mock_thread_get.execute.side_effect = mock_error
-        mock_service.users().threads().get.return_value = mock_thread_get
-
-        # Execute & Assert
-        with self.assertRaises(Exception) as context:
-            fetch_gmail_thread_json(gmail_url)
-
-        self.assertIn("Access denied", str(context.exception))
+        # Assert
+        self.assertEqual(result, expected_content)
+        mock_fetch.assert_called_once_with(self.sample_gmail_message_id)
+        mock_extract.assert_called_once_with(self.sample_gmail_message)
 
 
 if __name__ == '__main__':

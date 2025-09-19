@@ -8,6 +8,7 @@ A Python application that uses AI to parse event information and automatically a
 SmartEventAdder/
 ├── modules/                  # A folder for all your reusable logic
 │   ├── __init__.py           # Makes 'modules' a Python package
+│   ├── google_auth.py        # The "Key" - Unified OAuth2 authentication for all Google APIs
 │   ├── event_parser.py       # The "Brain" - All LLM logic goes here (uses Vertex AI)
 │   ├── google_calendar.py    # The "Hands" - All Google Calendar API logic
 │   └── gmail_fetcher.py      # The "Eyes" - Gmail API integration for email fetching
@@ -19,12 +20,12 @@ SmartEventAdder/
 │   ├── test_event_parser_integration.py # Integration tests with real Vertex AI API
 │   ├── test_google_calendar.py # Unit tests for google_calendar module
 │   ├── test_gmail_fetcher.py # Unit tests for gmail_fetcher module
-│   └── test_integration.py   # General integration tests
+│   └── test_calendar_integration.py # Google Calendar integration tests
 │
 ├── main.py                   # The "Orchestrator" - Complete workflow from email to calendar
 ├── run_tests.py              # Test runner script
 ├── pytest.ini               # Pytest configuration
-├── setup_gcloud.sh           # Google Cloud authentication setup script
+├── setup_gcloud.sh           # Google Cloud authentication setup script (deprecated - OAuth2 recommended)
 ├── sample_emails/            # Sample email files for testing
 │   ├── meeting_invite.txt    # Weekly team meeting example
 │   ├── business_meeting.txt  # Formal business meeting example
@@ -42,13 +43,14 @@ SmartEventAdder/
 - **AI-Powered Event Parsing**: Uses Google Vertex AI (Gemini 1.5 Flash) to extract event information from natural language text
 - **Google Calendar Integration**: Automatically creates events in your Google Calendar
 - **Multiple Input Methods**: Support for file input, direct text, interactive mode, and Gmail message ID fetching
-- **Gmail API Integration**: Fetch emails directly from Gmail using message IDs or URLs
+- **Gmail API Integration**: Fetch emails directly from Gmail using message IDs or Message-ID headers
 - **Input Validation & Security**: Sanitizes input and validates data before processing
 - **User Confirmation**: Review extracted details before creating calendar events
-- **OAuth 2.0 Authentication**: Secure authentication with Google Calendar and Gmail APIs
+- **Unified OAuth 2.0 Authentication**: Dedicated authentication module for all Google APIs with single sign-on
+- **Simplified Authentication Architecture**: Centralized auth logic in `google_auth.py` module
 - **JST Timezone Support**: Properly handles Japan Standard Time (JST/UTC+9)
 - **1-Hour Event Duration**: Creates events with a default duration of 1 hour
-- **Comprehensive Testing**: 75+ test cases including Gmail fetcher testing (19 tests), Gmail integration tests (9 tests), complete main.py orchestrator testing (31 tests), unit tests with mocking, and integration tests with real APIs
+- **Comprehensive Testing**: 75+ test cases including Gmail fetcher testing (13 tests), Gmail integration tests (6 tests), complete main.py orchestrator testing (31 tests), unit tests with mocking, and integration tests with real APIs
 - **Comprehensive Logging**: Detailed logging for debugging and monitoring
 
 ## Setup
@@ -83,39 +85,62 @@ With the virtual environment activated, install the required packages:
 pip install -r requirements.txt
 ```
 
-### 3. Google Calendar API Setup
+### 3. Google Cloud Console Setup
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
-3. Enable the Google Calendar API
-4. Create credentials (OAuth 2.0 Client ID)
-5. Download the credentials and save as `credentials.json` in the project root
+3. Enable the required APIs:
+   - **Google Calendar API** (for calendar integration)
+   - **Gmail API** (for email fetching)
+   - **Vertex AI API** (for AI-powered event parsing)
+4. Create **OAuth 2.0 Client ID** credentials:
+   - Go to "Credentials" in the API & Services section
+   - Click "Create Credentials" → "OAuth 2.0 Client ID"
+   - Choose "Desktop application"
+   - Download the credentials and save as `credentials.json` in the project root
 
-### 4. Google Cloud Setup (Automated)
+### 4. Unified Authentication (Recommended)
 
-**Easy setup using the provided script:**
+**New Simplified Setup:** The project now uses a single OAuth2 flow for all Google services:
+
+- ✅ **No gcloud CLI required**
+- ✅ **Single authentication process**
+- ✅ **Consistent credential management**
+
+The first time you run the application, it will:
+1. Open a browser for Google OAuth consent
+2. Request permissions for Gmail, Calendar, and Cloud Platform (Vertex AI)
+3. Create a `token.json` file with all necessary permissions
+4. All subsequent runs use the stored credentials automatically
+
+### 4b. Legacy Google Cloud Setup (Optional)
+
+*Note: This is no longer required as OAuth2 handles Vertex AI authentication*
+
+<details>
+<summary>Click to expand legacy setup instructions</summary>
+
+**Using the provided script:**
 
 ```bash
 # Run the setup script (will open browser windows for authentication)
 ./setup_gcloud.sh
 ```
 
-**Manual setup (if needed):**
+**Manual setup:**
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the Vertex AI API
-4. Set up authentication:
-   ```bash
-   # Authenticate with your personal Google account
-   gcloud auth login
+```bash
+# Authenticate with your personal Google account
+gcloud auth login
 
-   # Set up Application Default Credentials
-   gcloud auth application-default login
+# Set up Application Default Credentials
+gcloud auth application-default login
 
-   # Set your project
-   gcloud config set project YOUR_PROJECT_ID
-   ```
+# Set your project
+gcloud config set project YOUR_PROJECT_ID
+```
+
+</details>
 
 ### 5. Environment Variables
 
@@ -130,22 +155,41 @@ GOOGLE_CLOUD_LOCATION=asia-northeast1
 
 ## Usage
 
-### Gmail Fetcher Module
+### Google Authentication Module
 
-The `gmail_fetcher.py` module provides Gmail API integration to fetch emails using thread IDs from Gmail URLs:
+The `google_auth.py` module provides unified authentication for all Google services:
 
 ```python
-from modules.gmail_fetcher import fetch_gmail_thread_json, extract_thread_id_from_url
+from modules.google_auth import authenticate_google_services
 
-# Method 1: Fetch thread directly from Gmail URL (Recommended)
-gmail_url = "https://mail.google.com/mail/u/0/#inbox/FMfcgzQcpnHbpQPZzTKQgjzPtdsWrwpr"
-thread_data = fetch_gmail_thread_json(gmail_url)
+# Get authenticated credentials for all Google APIs
+# This works for Gmail, Calendar, and Vertex AI
+creds = authenticate_google_services()
 
-# Method 2: Extract thread ID and process manually
-thread_id = extract_thread_id_from_url(gmail_url)
-# Note: Thread ID from URL may not directly work with Gmail API
+# Use credentials with any Google API client
+from googleapiclient.discovery import build
+gmail_service = build('gmail', 'v1', credentials=creds)
+calendar_service = build('calendar', 'v3', credentials=creds)
 
-# The fetched thread_data contains complete Gmail API response with messages
+# Vertex AI also uses the same credentials automatically
+```
+
+### Gmail Fetcher Module
+
+The `gmail_fetcher.py` module provides Gmail API integration to fetch emails using Message-ID headers:
+
+```python
+from modules.gmail_fetcher import fetch_email_by_message_id_header, fetch_email_by_gmail_id
+
+# Method 1: Fetch email using Message-ID header (Recommended)
+message_id_header = "684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail"
+email_content = fetch_email_by_message_id_header(message_id_header)
+
+# Method 2: Fetch email using Gmail API message ID
+gmail_message_id = "1995b3c89509dde1"
+email_content = fetch_email_by_gmail_id(gmail_message_id)
+
+# The email_content contains formatted email with subject, from, date, and body
 ```
 
 ### Gmail Message ID Handling
@@ -161,23 +205,16 @@ thread_id = extract_thread_id_from_url(gmail_url)
 **To find a message by Message-ID header:**
 
 ```python
-from modules.gmail_fetcher import authenticate_gmail
-from googleapiclient.discovery import build
+from modules.gmail_fetcher import search_message_by_message_id_header
 
-# Search for message using Message-ID header
-creds = authenticate_gmail()
-service = build('gmail', 'v1', credentials=creds)
+# Search for message using Message-ID header (simplified)
+message_id_header = '684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail'
+message = search_message_by_message_id_header(message_id_header)
 
-message_id_header = '2b630e07-5cd7-4791-9ff1-a4d0a58a56e3@seg.co.jp'
-search_query = f'rfc822msgid:{message_id_header}'
-
-result = service.users().messages().list(userId='me', q=search_query, maxResults=1).execute()
-messages = result.get('messages', [])
-
-if messages:
-    gmail_message_id = messages[0]['id']
-    message = service.users().messages().get(userId='me', id=gmail_message_id, format='full').execute()
-    # Process the message...
+if message:
+    # Process the Gmail API message object
+    print(f"Found message: {message.get('id')}")
+    # Extract content using extract_email_content(message)
 ```
 
 **Key Limitations:**
@@ -282,11 +319,11 @@ This project includes a comprehensive test suite with **75+ total test cases** c
 | `test_event_parser.py` | 6 tests | Event parsing unit tests with mocking |
 | `test_event_parser_integration.py` | 6 tests | Real Vertex AI API integration tests |
 | `test_google_calendar.py` | 8 tests | Google Calendar API unit tests |
-| `test_gmail_fetcher.py` | 19 tests | Gmail API integration unit tests (updated) |
-| `test_gmail_fetcher_integration.py` | 9 tests | Gmail API integration tests with real data |
+| `test_gmail_fetcher.py` | 13 tests | Gmail API unit tests with new authentication |
+| `test_gmail_fetcher_integration.py` | 6 tests | Gmail API integration tests with real data |
 | `test_gmail_api.py` | - | Gmail API response analysis and Message-ID testing |
 | `test_gmail_message_api.py` | - | Gmail Message-ID header testing and search functionality |
-| `test_integration.py` | 5+ tests | End-to-end integration tests |
+| `test_calendar_integration.py` | 5+ tests | End-to-end calendar integration tests |
 
 ### Main Orchestrator Tests (31 test cases)
 
@@ -344,15 +381,14 @@ python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher.py --cov-r
 ```
 
 **Gmail Fetcher Test Coverage:**
-- **authenticate_gmail()** - OAuth2 authentication flow testing
-- **fetch_email_by_id()** - Email fetching with success, not found, and access denied scenarios
-- **fetch_email_by_url()** - Complete Gmail URL to email content workflow (NEW)
-- **resolve_gmail_url_to_message_id()** - Gmail URL to API message ID resolution (NEW)
+- **Unified authentication** - Tests using the new `google_auth` module
+- **search_message_by_message_id_header()** - Message-ID header search functionality
+- **fetch_message_by_id()** - Gmail API message fetching with error handling
+- **fetch_email_by_message_id_header()** - Complete Message-ID to email content workflow
+- **fetch_email_by_gmail_id()** - Complete Gmail API message ID workflow
 - **extract_email_content()** - Email content extraction from Gmail message objects
 - **extract_message_body()** - Plain text and multipart message handling
 - **strip_html_tags()** - HTML email content processing
-- **validate_message_id()** - Message ID format validation (updated for new formats)
-- **extract_message_id_from_url()** - URL parsing for Gmail links (updated regex)
 
 ### Gmail API Testing & Analysis
 
@@ -394,10 +430,10 @@ python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher_integratio
 
 **Integration Test Coverage:**
 - **Real Gmail authentication** - Complete OAuth2 flow testing
-- **URL parsing** - Extract message IDs from real Gmail URLs
-- **Email fetching** - Retrieve actual emails by message ID
-- **Complete workflow** - Gmail URL → Message ID → Email content
-- **Error handling** - Nonexistent message ID scenarios
+- **Message-ID header search** - Search for emails using Message-ID headers with real API
+- **Email content fetching** - Retrieve actual emails by Gmail API message ID
+- **Complete workflows** - Message-ID header → Email content and Gmail ID → Email content
+- **Error handling** - Nonexistent message scenarios
 - **Permission verification** - Gmail scope validation
 
 ### Google Calendar Tests
@@ -407,7 +443,7 @@ python -m pytest --cov=modules.gmail_fetcher tests/test_gmail_fetcher_integratio
 python -m pytest tests/test_google_calendar.py -v
 
 # Run calendar integration tests (requires credentials)
-python -m pytest tests/test_integration.py -v
+python -m pytest tests/test_calendar_integration.py -v
 ```
 
 ### Running All Tests
@@ -444,7 +480,7 @@ python run_tests.py
 
 **For Unit Tests:** No additional setup required
 **For Integration Tests:**
-- Google Cloud authentication (run `./setup_gcloud.sh`)
+- OAuth2 authentication with Google APIs (automatic on first run)
 - Valid `.env` file with project configuration
 - Internet connection for API calls
 
@@ -452,24 +488,29 @@ python run_tests.py
 
 ## Authentication Flow
 
-### Google Calendar Authentication
-1. First run will open a browser for Google OAuth consent
-2. Grant permissions to access your Google Calendar
-3. A `token.json` file will be created to store your access tokens
-4. Subsequent runs will use the stored tokens automatically
+### Unified OAuth2 Authentication
+SmartEventAdder now uses a **single authentication flow** for all Google services (Gmail, Calendar, and Vertex AI):
 
-### Vertex AI Authentication
-1. Run `./setup_gcloud.sh` or use `gcloud auth application-default login`
-2. Browser will open for Google account authentication
-3. Grant permissions for cloud platform access
-4. Application Default Credentials will be stored locally
-5. All Vertex AI API calls will use these credentials automatically
+1. **First run** will open a browser for Google OAuth consent
+2. **Grant permissions** for:
+   - Google Calendar access (create/read events)
+   - Gmail read access (fetch emails)
+   - Cloud Platform access (Vertex AI for event parsing)
+3. A `token.json` file will be created to store your access tokens
+4. **Subsequent runs** use the stored tokens automatically
+5. **All APIs** (Gmail, Calendar, Vertex AI) use the same credentials
+
+### Benefits of Unified Authentication:
+- ✅ **No gcloud CLI required** - eliminates need for `setup_gcloud.sh`
+- ✅ **Single authentication step** - one browser interaction for all services
+- ✅ **Consistent credential management** - same `credentials.json` and `token.json` for everything
+- ✅ **Simplified deployment** - no separate GCP authentication setup needed
 
 ## Dependencies
 
-- **google-api-python-client**: Google Calendar API client
+- **google-api-python-client**: Google Calendar and Gmail API client
 - **google-auth-httplib2**: Google authentication library
-- **google-auth-oauthlib**: OAuth 2.0 flow for Google APIs
+- **google-auth-oauthlib**: OAuth 2.0 flow for Google APIs (unified authentication)
 - **google-cloud-aiplatform**: Google Vertex AI platform client
 - **python-dotenv**: Environment variable management
 - **python-dateutil**: Enhanced date/time handling
@@ -477,6 +518,35 @@ python run_tests.py
 - **jsonschema**: JSON schema validation
 - **pytest**: Testing framework
 - **pytest-cov**: Test coverage reporting
+
+## Architecture
+
+SmartEventAdder follows a modular architecture with clear separation of concerns:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   google_auth   │    │  gmail_fetcher  │    │ google_calendar │
+│                 │    │                 │    │                 │
+│ OAuth2 Unified  │◄───┤ Email Fetching  │    │ Event Creation  │
+│ Authentication  │    │                 │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         ▲                                             ▲
+         │                                             │
+         └─────────────┐                   ┌─────────┘
+                       │                   │
+                 ┌─────────────────┐      │
+                 │  event_parser   │      │
+                 │                 │      │
+                 │ AI Event        │──────┘
+                 │ Extraction      │
+                 └─────────────────┘
+```
+
+**Key Architectural Benefits:**
+- **Single Source of Truth**: `google_auth.py` handles all Google API authentication
+- **Clean Dependencies**: Each module imports from `google_auth`, no circular dependencies
+- **Unified Credentials**: Same OAuth2 token works for Gmail, Calendar, and Vertex AI
+- **Modular Design**: Each module has a single, well-defined responsibility
 
 ## Security Notes
 
