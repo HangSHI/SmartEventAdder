@@ -15,7 +15,7 @@ SmartEventAdder/
 │
 ├── tests/                    # Comprehensive unit and integration tests
 │   ├── __init__.py           # Makes 'tests' a Python package
-│   ├── test_main.py          # Unit tests for main.py orchestrator (31 test cases)
+│   ├── test_main.py          # Unit tests for main.py orchestrator (36 test cases)
 │   ├── test_event_parser.py  # Unit tests for event_parser module
 │   ├── test_event_parser_integration.py # Integration tests with real Vertex AI API
 │   ├── test_google_calendar.py # Unit tests for google_calendar module
@@ -42,7 +42,7 @@ SmartEventAdder/
 - **Complete Workflow Orchestration**: End-to-end automation from email text to calendar event
 - **AI-Powered Event Parsing**: Uses Google Vertex AI (Gemini 1.5 Flash) to extract event information from natural language text
 - **Google Calendar Integration**: Automatically creates events in your Google Calendar
-- **Multiple Input Methods**: Support for file input, direct text, interactive mode, and Gmail message ID fetching
+- **Multiple Input Methods**: Support for file input, direct text, interactive mode, and direct Message-ID header input
 - **Gmail API Integration**: Fetch emails directly from Gmail using message IDs or Message-ID headers
 - **Input Validation & Security**: Sanitizes input and validates data before processing
 - **User Confirmation**: Review extracted details before creating calendar events
@@ -50,7 +50,7 @@ SmartEventAdder/
 - **Simplified Authentication Architecture**: Centralized auth logic in `google_auth.py` module
 - **JST Timezone Support**: Properly handles Japan Standard Time (JST/UTC+9)
 - **1-Hour Event Duration**: Creates events with a default duration of 1 hour
-- **Comprehensive Testing**: 75+ test cases including Gmail fetcher testing (13 tests), Gmail integration tests (6 tests), complete main.py orchestrator testing (31 tests), unit tests with mocking, and integration tests with real APIs
+- **Comprehensive Testing**: 80+ test cases including Gmail fetcher testing (13 tests), Gmail integration tests (6 tests), complete main.py orchestrator testing (36 tests), unit tests with mocking, and integration tests with real APIs
 - **Comprehensive Logging**: Detailed logging for debugging and monitoring
 
 ## Setup
@@ -282,6 +282,9 @@ python main.py "Team meeting tomorrow at 2pm in conference room A"
 
 # File input - read email from text file
 python main.py sample_emails/meeting_invite.txt
+
+# Message-ID header input - fetch email directly from Gmail
+python main.py "684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail"
 ```
 
 #### **Sample Email Files:**
@@ -291,7 +294,7 @@ We provide sample email files for testing:
 - `sample_emails/casual_event.txt` - Casual company picnic
 
 #### **Workflow Steps:**
-1. **📧 Email Input** - Get email content via file, text, interactive input, or Gmail message ID
+1. **📧 Email Input** - Get email content via file, text, interactive input, or Message-ID header (with automatic Gmail fetching)
 2. **🛡️ Input Validation** - Sanitize and validate email content
 3. **🤖 AI Processing** - Extract event details using Vertex AI
 4. **✅ Data Validation** - Verify extracted information completeness
@@ -300,7 +303,8 @@ We provide sample email files for testing:
 7. **📊 Results** - Show success/failure with detailed feedback
 
 #### **Features:**
-- **Multiple input methods** (interactive, file, command line)
+- **Multiple input methods** (interactive, file, command line, Message-ID header)
+- **Automatic Message-ID detection** - Recognizes and fetches emails from Gmail automatically
 - **Input sanitization** and validation
 - **User confirmation** before creating events
 - **Comprehensive error handling** with helpful suggestions
@@ -309,13 +313,13 @@ We provide sample email files for testing:
 
 ## Testing
 
-This project includes a comprehensive test suite with **75+ total test cases** covering all functionality:
+This project includes a comprehensive test suite with **80+ total test cases** covering all functionality:
 
 ### Test Suite Overview
 
 | Test File | Test Count | Purpose |
 |-----------|------------|---------|
-| `test_main.py` | 31 tests | Complete orchestrator workflow testing |
+| `test_main.py` | 36 tests | Complete orchestrator workflow testing |
 | `test_event_parser.py` | 6 tests | Event parsing unit tests with mocking |
 | `test_event_parser_integration.py` | 6 tests | Real Vertex AI API integration tests |
 | `test_google_calendar.py` | 8 tests | Google Calendar API unit tests |
@@ -325,7 +329,7 @@ This project includes a comprehensive test suite with **75+ total test cases** c
 | `test_gmail_message_api.py` | - | Gmail Message-ID header testing and search functionality |
 | `test_calendar_integration.py` | 5+ tests | End-to-end calendar integration tests |
 
-### Main Orchestrator Tests (31 test cases)
+### Main Orchestrator Tests (36 test cases)
 
 Run comprehensive unit tests for the main workflow orchestrator:
 
@@ -344,7 +348,8 @@ python -m pytest --cov=main tests/test_main.py
 **Main.py Test Coverage:**
 - **setup_logging()** - Logging configuration validation
 - **load_environment()** - Environment variable loading (success, missing, defaults)
-- **get_email_input()** - Multiple input methods (file, text, interactive, error handling)
+- **is_message_id_header()** - Message-ID header detection and validation
+- **get_email_input()** - Multiple input methods (file, text, interactive, Message-ID header, error handling)
 - **validate_email_input()** - Input sanitization, validation, security filtering
 - **validate_extracted_data()** - Data validation, date/time format checking
 - **display_event_details()** - Event display formatting with missing data handling
@@ -449,7 +454,7 @@ python -m pytest tests/test_calendar_integration.py -v
 ### Running All Tests
 
 ```bash
-# Run complete test suite (75+ tests)
+# Run complete test suite (80+ tests)
 python -m pytest -v
 
 # Run with coverage report
