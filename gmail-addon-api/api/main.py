@@ -29,14 +29,14 @@ from modules.gmail_fetcher import fetch_email_by_message_id_header, fetch_email_
 from modules.google_auth import authenticate_google_services
 
 # Import API-specific components
-from api.models.requests import (
+from .models.requests import (
     EmailProcessRequest,
     MessageIdRequest,
     GmailIdRequest,
     EventCreateRequest,
     CompleteWorkflowRequest
 )
-from api.models.responses import (
+from .models.responses import (
     ApiResponse,
     ParseEmailResponse,
     FetchEmailResponse,
@@ -44,7 +44,7 @@ from api.models.responses import (
     CompleteWorkflowResponse,
     HealthResponse
 )
-from api.config import get_settings
+from .config import get_settings
 
 # Environment configuration
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
@@ -102,6 +102,7 @@ async def global_exception_handler(request, exc):
 async def root():
     """Root endpoint with basic info."""
     return HealthResponse(
+        success=True,
         status="healthy",
         service="SmartEventAdder Gmail Add-on API",
         version="1.0.0"
@@ -116,6 +117,7 @@ async def health_check():
         logger.info("Google API authentication successful")
 
         return HealthResponse(
+            success=True,
             status="healthy",
             service="SmartEventAdder Gmail Add-on API",
             version="1.0.0",
@@ -124,6 +126,7 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         return HealthResponse(
+            success=False,
             status="unhealthy",
             service="SmartEventAdder Gmail Add-on API",
             version="1.0.0",
