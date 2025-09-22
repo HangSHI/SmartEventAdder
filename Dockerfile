@@ -65,7 +65,7 @@ HEALTHCHECK --interval=60s --timeout=10s --start-period=10s --retries=2 \
 EXPOSE ${PORT}
 
 # Run the FastAPI application with production settings
-CMD uvicorn gmail-addon-api.api.main:app \
+CMD cd gmail-addon-api && uvicorn api.main:app \
     --host 0.0.0.0 \
     --port ${PORT} \
     --workers 1 \
