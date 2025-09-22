@@ -36,11 +36,15 @@ const API_TIMEOUT = 30000; // 30 seconds
  */
 function buildCardForEmail(e) {
   console.log('buildCardForEmail triggered');
+  console.log('Initial event object:', JSON.stringify(e, null, 2));
 
   try {
     // Get email information from the event object
     const messageId = e.gmail.messageId;
     const accessToken = e.gmail.accessToken;
+
+    console.log('Extracted messageId:', messageId);
+    console.log('Has accessToken:', !!accessToken);
 
     // Create the main interface card
     const card = createMainCard(messageId, accessToken);
@@ -119,9 +123,26 @@ function createActionSection(messageId) {
  */
 function parseEmailEvent(e) {
   console.log('parseEmailEvent called');
+  console.log('Event object:', JSON.stringify(e, null, 2));
+
+  // Declare messageId outside try block so it's accessible in catch
+  let messageId = null;
 
   try {
-    const messageId = e.parameters.messageId;
+    // Try multiple ways to get messageId
+    if (e && e.parameters && e.parameters.messageId) {
+      messageId = e.parameters.messageId;
+    } else if (e && e.gmail && e.gmail.messageId) {
+      messageId = e.gmail.messageId;
+    } else if (e && e.messageId) {
+      messageId = e.messageId;
+    }
+
+    console.log('Extracted messageId:', messageId);
+
+    if (!messageId) {
+      throw new Error('Could not extract messageId from event. Event structure: ' + JSON.stringify(e));
+    }
 
     // Show loading state
     const loadingCard = createLoadingCard();
@@ -213,22 +234,136 @@ function fetchEmailContent(messageId) {
 function extractMessageBody(payload) {
   let body = '';
 
-  if (payload.body && payload.body.data) {
-    // Simple message body
-    body = Utilities.newBlob(Utilities.base64Decode(payload.body.data)).getDataAsString();
-  } else if (payload.parts) {
-    // Multipart message
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain' && part.body && part.body.data) {
-        body += Utilities.newBlob(Utilities.base64Decode(part.body.data)).getDataAsString();
+  console.log('Extracting message body from payload:', JSON.stringify(payload, null, 2));
+
+  try {
+    if (payload.body && payload.body.data) {
+      // Simple message body
+      console.log('Found simple message body, data length:', payload.body.data.length);
+      body = decodeBase64Content(payload.body.data, 'simple message body');
+    } else if (payload.parts) {
+      // Multipart message
+      console.log('Found multipart message with', payload.parts.length, 'parts');
+      for (let i = 0; i < payload.parts.length; i++) {
+        const part = payload.parts[i];
+        console.log(`Part ${i}: mimeType=${part.mimeType}, hasData=${!!(part.body && part.body.data)}`);
+
+        if (part.mimeType === 'text/plain' && part.body && part.body.data) {
+          const partContent = decodeBase64Content(part.body.data, `text/plain part ${i}`);
+          if (partContent) {
+            body += partContent + '\n';
+          }
+        } else if (part.mimeType === 'text/html' && part.body && part.body.data && !body) {
+          // If no plain text found, try HTML as fallback
+          const htmlContent = decodeBase64Content(part.body.data, `text/html part ${i}`);
+          if (htmlContent) {
+            body += htmlContent + '\n';
+          }
+        } else if (part.parts) {
+          // Nested multipart (recursive handling)
+          console.log(`Part ${i} has nested parts, recursing...`);
+          const nestedContent = extractMessageBody(part);
+          if (nestedContent && nestedContent !== 'Email content could not be extracted') {
+            body += nestedContent + '\n';
+          }
+        }
+      }
+    } else {
+      console.log('No body data or parts found in payload');
+      body = 'No readable content found in email';
+    }
+
+    // Clean up the extracted body
+    if (body && body !== 'No readable content found in email') {
+      // Remove HTML tags if present
+      body = body.replace(/<[^>]*>/g, '');
+
+      // Clean up extra whitespace and newlines
+      body = body.replace(/\s+/g, ' ').trim();
+
+      // Remove common email artifacts
+      body = body.replace(/=\r?\n/g, ''); // Remove line breaks from quoted-printable
+      body = body.replace(/\u00A0/g, ' '); // Replace non-breaking spaces
+    }
+
+    console.log('Extracted body length:', body.length);
+    console.log('Body preview:', body.substring(0, 200));
+
+    return body || 'Email content could not be extracted';
+
+  } catch (error) {
+    console.error('Error in extractMessageBody:', error);
+    return 'Error extracting email content: ' + error.message;
+  }
+}
+
+/**
+ * Helper function to decode base64 content with comprehensive error handling
+ * Handles URL-safe base64 encoding used by Gmail API
+ *
+ * @param {string} base64Data - Base64 encoded string from Gmail API
+ * @param {string} context - Context description for logging
+ * @return {string} Decoded content or empty string if decoding fails
+ */
+function decodeBase64Content(base64Data, context) {
+  if (!base64Data) {
+    console.log(`No data to decode for ${context}`);
+    return '';
+  }
+
+  console.log(`Attempting to decode ${context}, data length: ${base64Data.length}`);
+
+  try {
+    // Method 1: Convert URL-safe base64 to standard base64 and decode with proper padding
+    let standardBase64 = base64Data.replace(/-/g, '+').replace(/_/g, '/');
+
+    // Add padding if necessary
+    while (standardBase64.length % 4) {
+      standardBase64 += '=';
+    }
+
+    console.log(`Converted URL-safe base64 for ${context}, new length: ${standardBase64.length}`);
+
+    try {
+      const decodedBytes = Utilities.base64Decode(standardBase64);
+      const content = Utilities.newBlob(decodedBytes).getDataAsString('UTF-8');
+      console.log(`Successfully decoded ${context} using UTF-8, content length: ${content.length}`);
+      return content;
+    } catch (utf8Error) {
+      console.warn(`UTF-8 decoding failed for ${context}, trying default encoding:`, utf8Error.message);
+
+      // Try without explicit encoding
+      const decodedBytes = Utilities.base64Decode(standardBase64);
+      const content = Utilities.newBlob(decodedBytes).getDataAsString();
+      console.log(`Successfully decoded ${context} using default encoding, content length: ${content.length}`);
+      return content;
+    }
+
+  } catch (standardError) {
+    console.warn(`Standard base64 decode failed for ${context}:`, standardError.message);
+
+    try {
+      // Method 2: Try direct decoding of original data
+      console.log(`Trying direct decode for ${context}...`);
+      const decodedBytes = Utilities.base64Decode(base64Data);
+      const content = Utilities.newBlob(decodedBytes).getDataAsString();
+      console.log(`Direct decode successful for ${context}, content length: ${content.length}`);
+      return content;
+    } catch (directError) {
+      console.error(`All decoding methods failed for ${context}:`, directError.message);
+
+      try {
+        // Method 3: Try decoding as raw string (last resort)
+        console.log(`Trying raw string interpretation for ${context}...`);
+        const content = Utilities.newBlob(Utilities.base64Decode(base64Data, Utilities.Charset.UTF_8)).getDataAsString();
+        console.log(`Raw string decode successful for ${context}, content length: ${content.length}`);
+        return content;
+      } catch (rawError) {
+        console.error(`Raw string decode also failed for ${context}:`, rawError.message);
+        return `[Could not decode ${context}: ${rawError.message}]`;
       }
     }
   }
-
-  // Remove HTML tags if present
-  body = body.replace(/<[^>]*>/g, '');
-
-  return body;
 }
 
 /**

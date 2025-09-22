@@ -16,7 +16,17 @@ echo "🚀 Deploying SmartEventAdder API to Cloud Run"
 echo "Project: $PROJECT_ID"
 echo "Region: $REGION"
 
+# Enable required APIs
+echo "📋 Enabling required Google Cloud APIs..."
+gcloud services enable run.googleapis.com --project $PROJECT_ID
+gcloud services enable cloudbuild.googleapis.com --project $PROJECT_ID
+gcloud services enable artifactregistry.googleapis.com --project $PROJECT_ID
+gcloud services enable aiplatform.googleapis.com --project $PROJECT_ID
+gcloud services enable calendar-json.googleapis.com --project $PROJECT_ID
+gcloud services enable gmail.googleapis.com --project $PROJECT_ID
+
 # Build and deploy using Cloud Run source deployment
+echo "🚀 Deploying to Cloud Run..."
 gcloud run deploy $SERVICE_NAME \
     --source . \
     --platform managed \

@@ -14,6 +14,8 @@ import os
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+import google.auth
+from google.auth import default
 
 # Unified scopes for all Google services used in SmartEventAdder
 SCOPES = [
@@ -25,45 +27,83 @@ SCOPES = [
 
 def authenticate_google_services():
     """
-    Handle OAuth 2.0 authentication flow for all Google services.
+    Handle authentication for all Google services with support for both
+    local development (OAuth2) and production deployment (Application Default Credentials).
 
     This function provides unified authentication for Gmail, Calendar, and Vertex AI APIs.
-    On first run, it will open a browser for OAuth consent. Subsequent runs will use
-    stored credentials automatically.
+
+    - In production (Google Cloud Run): Uses Application Default Credentials (ADC)
+    - In development: Uses OAuth2 flow with credentials.json/token.json
 
     Returns:
-        google.oauth2.credentials.Credentials: Authenticated credentials object
+        google.auth.credentials.Credentials: Authenticated credentials object
 
     Raises:
-        Exception: If authentication fails or credentials.json is missing
+        Exception: If authentication fails
     """
-    creds = None
+    # Check if we're running in a production environment (Google Cloud)
+    environment = os.getenv('ENVIRONMENT', 'development').lower()
+    is_production = environment in ['production', 'prod']
 
-    # Check if token.json exists and load existing credentials
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    # Also check for Google Cloud environment variables
+    is_google_cloud = (
+        os.getenv('GOOGLE_CLOUD_PROJECT') or
+        os.getenv('GOOGLE_CLOUD_PROJECT_ID') or
+        os.getenv('K_SERVICE')  # Cloud Run service name env var
+    )
 
-    # If there are no (valid) credentials available, let the user log in
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            # Refresh expired credentials
-            creds.refresh(Request())
-        else:
-            # Run OAuth flow for new credentials
-            if not os.path.exists('credentials.json'):
-                raise Exception(
-                    "credentials.json file not found. Please follow the setup instructions in README.md"
-                )
+    if is_production or is_google_cloud:
+        # Production: Use Application Default Credentials
+        try:
+            print("Using Application Default Credentials for production environment")
+            creds, project = default(scopes=SCOPES)
 
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+            # Ensure credentials are valid
+            if not creds.valid:
+                creds.refresh(Request())
 
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+            print(f"Successfully authenticated with ADC for project: {project}")
+            return creds
 
-    return creds
+        except Exception as e:
+            print(f"ADC authentication failed: {str(e)}")
+            raise Exception(
+                f"Production authentication failed. Ensure the service account has the required permissions. Error: {str(e)}"
+            )
+
+    else:
+        # Development: Use OAuth2 flow with local files
+        print("Using OAuth2 flow for development environment")
+        creds = None
+
+        # Check if token.json exists and load existing credentials
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
+        # If there are no (valid) credentials available, let the user log in
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                # Refresh expired credentials
+                print("Refreshing expired credentials")
+                creds.refresh(Request())
+            else:
+                # Run OAuth flow for new credentials
+                if not os.path.exists('credentials.json'):
+                    raise Exception(
+                        "credentials.json file not found. Please follow the setup instructions in README.md"
+                    )
+
+                print("Starting OAuth2 authentication flow")
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    'credentials.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+
+            # Save the credentials for the next run
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+                print("Credentials saved to token.json")
+
+        return creds
 
 
 def get_authenticated_credentials():
