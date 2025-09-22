@@ -23,6 +23,10 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
 
+# JWT authentication for Apps Script integration
+pyjwt==2.10.1
+cryptography==43.0.3
+
 # JSON handling and data processing
 jsonschema==4.25.1
 
