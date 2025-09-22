@@ -74,6 +74,8 @@ class CreateEventResponse(ApiResponse):
     """Response model for calendar event creation endpoint."""
     calendar_result: Optional[Union[Dict[str, Any], str]] = Field(None, description="Calendar API result")
     event_data: Optional[Dict[str, Any]] = Field(None, description="Event data that was used")
+    calendar_link: Optional[str] = Field(None, description="Direct link to the created calendar event")
+    event_id: Optional[str] = Field(None, description="Google Calendar event ID")
 
     class Config:
         schema_extra = {
@@ -86,7 +88,9 @@ class CreateEventResponse(ApiResponse):
                     "date": "2024-01-15",
                     "start_time": "14:30",
                     "location": "Conference Room A"
-                }
+                },
+                "calendar_link": "https://calendar.google.com/event?eid=...",
+                "event_id": "event123"
             }
         }
 

@@ -1,19 +1,37 @@
 # SmartEventAdder
 
-A Python application that uses AI to parse event information and automatically add events to Google Calendar.
+A comprehensive AI-powered event management system that combines a Python backend with a Gmail add-on frontend to automatically parse emails and create Google Calendar events.
 
 ## Project Structure
 
 ```
 SmartEventAdder/
-├── modules/                  # A folder for all your reusable logic
+├── modules/                  # Core backend modules
 │   ├── __init__.py           # Makes 'modules' a Python package
 │   ├── google_auth.py        # The "Key" - Unified OAuth2 authentication for all Google APIs
 │   ├── event_parser.py       # The "Brain" - All LLM logic goes here (uses Vertex AI)
 │   ├── google_calendar.py    # The "Hands" - All Google Calendar API logic
 │   └── gmail_fetcher.py      # The "Eyes" - Gmail API integration for email fetching
 │
-├── tests/                    # Comprehensive unit and integration tests
+├── gmail-addon-api/          # Production-ready FastAPI backend
+│   ├── api/                  # API implementation
+│   │   ├── __init__.py       # Package initialization
+│   │   ├── main.py           # FastAPI application entry point
+│   │   ├── config.py         # Configuration management
+│   │   └── models/           # Request/response models
+│   │       ├── __init__.py   # Models package initialization
+│   │       ├── requests.py   # API request models
+│   │       └── responses.py  # API response models
+│   └── tests/                # API-specific tests
+│       ├── __init__.py       # Test package initialization
+│       └── test_api.py       # FastAPI endpoint tests
+│
+├── frontend/                 # Gmail add-on frontend
+│   └── gmail-addon/          # Google Apps Script code
+│       ├── appsscript.json   # Add-on manifest and configuration
+│       └── Code.gs           # Main Apps Script code with UI logic
+│
+├── tests/                    # Comprehensive backend tests
 │   ├── __init__.py           # Makes 'tests' a Python package
 │   ├── test_main.py          # Unit tests for main.py orchestrator (36 test cases)
 │   ├── test_event_parser.py  # Unit tests for event_parser module
@@ -22,34 +40,53 @@ SmartEventAdder/
 │   ├── test_gmail_fetcher.py # Unit tests for gmail_fetcher module
 │   └── test_calendar_integration.py # Google Calendar integration tests
 │
-├── main.py                   # The "Orchestrator" - Complete workflow from email to calendar
-├── run_tests.py              # Test runner script
-├── pytest.ini               # Pytest configuration
-├── setup_gcloud.sh           # Google Cloud authentication setup script (deprecated - OAuth2 recommended)
 ├── sample_emails/            # Sample email files for testing
 │   ├── meeting_invite.txt    # Weekly team meeting example
 │   ├── business_meeting.txt  # Formal business meeting example
 │   └── casual_event.txt      # Casual company event example
+│
+├── main.py                   # The "Orchestrator" - Complete CLI workflow
+├── run_tests.py              # Test runner script
+├── pytest.ini               # Pytest configuration
+├── Dockerfile                # Container deployment configuration
+├── deploy.sh                 # Cloud deployment script
 ├── credentials.json          # Your Google API credentials file (not tracked in git)
 ├── .env                      # Your Google Cloud configuration (not tracked in git)
-├── requirements.txt          # A list of your project's Python libraries
+├── requirements.txt          # Python dependencies
 ├── .gitignore               # Files to ignore in version control
 └── README.md                # This file
 ```
 
 ## Features
 
-- **Complete Workflow Orchestration**: End-to-end automation from email text to calendar event
+### Core Features
 - **AI-Powered Event Parsing**: Uses Google Vertex AI (Gemini 1.5 Flash) to extract event information from natural language text
 - **Google Calendar Integration**: Automatically creates events in your Google Calendar
-- **Multiple Input Methods**: Support for file input, direct text, interactive mode, and direct Message-ID header input
 - **Gmail API Integration**: Fetch emails directly from Gmail using message IDs or Message-ID headers
+- **Unified OAuth 2.0 Authentication**: Dedicated authentication module for all Google APIs with single sign-on
+
+### Multiple Interfaces
+- **Gmail Add-on Interface**: Interactive card-based UI directly in Gmail sidebar
+- **REST API**: Production-ready FastAPI backend for programmatic access
+- **Command Line Interface**: Complete CLI workflow with multiple input methods
+- **Web API Documentation**: Auto-generated API docs with interactive testing
+
+### User Experience
+- **User-Friendly Gmail Add-on**: Click-to-parse interface with visual feedback
 - **Input Validation & Security**: Sanitizes input and validates data before processing
 - **User Confirmation**: Review extracted details before creating calendar events
-- **Unified OAuth 2.0 Authentication**: Dedicated authentication module for all Google APIs with single sign-on
-- **Simplified Authentication Architecture**: Centralized auth logic in `google_auth.py` module
+- **Comprehensive Error Handling**: Helpful error messages and recovery suggestions
+- **Real-time Processing**: Immediate feedback and progress indicators
+
+### Developer Features
+- **Production-Ready API**: FastAPI backend with proper logging, CORS, and error handling
+- **Comprehensive Testing**: 77+ test cases covering all functionality
+- **Container Deployment**: Docker support for cloud deployment
+- **Modular Architecture**: Clean separation between parsing, authentication, and calendar logic
 
 ## Setup
+
+This project supports multiple deployment modes: CLI usage, API backend, and Gmail add-on frontend.
 
 ### 1. Create Virtual Environment
 
@@ -109,6 +146,105 @@ GOOGLE_CLOUD_LOCATION=asia-northeast1
 **Note:** The setup script will help you identify your project ID. Tokyo region (`asia-northeast1`) is recommended for users in Japan.
 
 ## Usage
+
+### Gmail Add-on Interface (Recommended)
+
+The Gmail add-on provides the most user-friendly experience for parsing emails and creating calendar events directly from Gmail.
+
+#### Setup Gmail Add-on
+
+1. **Deploy API Backend** (required for add-on):
+   ```bash
+   # Deploy to Google Cloud Run
+   ./deploy.sh
+   ```
+
+2. **Configure Apps Script**:
+   - Go to [script.google.com](https://script.google.com)
+   - Create new project and copy code from `frontend/gmail-addon/Code.gs`
+   - Update `API_BASE_URL` with your deployed API endpoint
+   - Copy manifest from `frontend/gmail-addon/appsscript.json`
+   - Enable Gmail API service in Apps Script
+
+3. **Test the Add-on**:
+   - Deploy as test add-on in Apps Script
+   - Open Gmail and select any email
+   - See Smart Event Adder in the right sidebar
+   - Click "Parse Event" to extract event details
+   - Click "Create Calendar Event" to add to calendar
+
+#### Add-on Features
+
+- **One-Click Parsing**: Extract event details from any email
+- **Visual Feedback**: Progress indicators and clear status messages
+- **Event Preview**: Review extracted details before creating events
+- **Error Handling**: User-friendly error messages with suggestions
+- **Real-time Processing**: Immediate AI-powered analysis
+
+### REST API Interface
+
+The FastAPI backend provides programmatic access to SmartEventAdder functionality.
+
+#### Start API Server
+
+```bash
+# Development mode
+cd gmail-addon-api
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Production deployment
+./deploy.sh
+```
+
+#### API Endpoints
+
+**Health Check:**
+```bash
+curl http://localhost:8000/api/health
+```
+
+**Parse Email Content:**
+```bash
+curl -X POST http://localhost:8000/api/parse-email \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email_content": "Team meeting tomorrow at 2pm in conference room A"
+  }'
+```
+
+**Create Calendar Event:**
+```bash
+curl -X POST http://localhost:8000/api/create-event \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_data": {
+      "summary": "Team Meeting",
+      "date": "2024-01-15",
+      "start_time": "14:00",
+      "location": "Conference Room A"
+    }
+  }'
+```
+
+**Complete Workflow (Gmail ID → Event):**
+```bash
+curl -X POST http://localhost:8000/api/complete-workflow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gmail_id": "1995b3c89509dde1",
+    "create_event": true
+  }'
+```
+
+#### API Documentation
+
+- **Interactive Docs**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **OpenAPI Schema**: http://localhost:8000/openapi.json
+
+### Command Line Interface
+
+The CLI provides direct access to all SmartEventAdder functionality for development and automation.
 
 ### Google Authentication Module
 
@@ -222,9 +358,9 @@ event_details = extract_event_details(project_id, location, email_text)
 # }
 ```
 
-### Main Script (Complete Workflow)
+#### CLI Usage (main.py)
 
-The `main.py` script orchestrates the complete workflow from email to calendar event:
+The `main.py` script orchestrates the complete CLI workflow from email to calendar event:
 
 #### **Usage Options:**
 
@@ -475,11 +611,72 @@ python run_tests.py
 **Note:** All integration tests are designed to be safe and use minimal API quotas.
 
 
+## Deployment
+
+### API Backend Deployment
+
+The FastAPI backend can be deployed to Google Cloud Run using Docker:
+
+```bash
+# Build and deploy
+./deploy.sh
+
+# Manual deployment
+docker build -t smarteventadder-api .
+gcloud run deploy smarteventadder-api --source . --region asia-northeast1
+```
+
+### Gmail Add-on Deployment
+
+1. **Development Testing**:
+   - Use Apps Script test deployments
+   - Deploy as personal add-on for testing
+
+2. **Production Deployment**:
+   - Submit to Google Workspace Marketplace
+   - Configure OAuth consent screen
+   - Complete security review process
+
+## Architecture Overview
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Gmail Add-on  │    │   FastAPI Backend │    │  Google APIs    │
+│   (Frontend)    │───▶│   (gmail-addon-api)│───▶│                 │
+│                 │    │                  │    │ • Gmail API     │
+│ • Apps Script   │    │ • REST endpoints │    │ • Calendar API  │
+│ • Card UI       │    │ • Request/Response│    │ • Vertex AI     │
+│ • User Actions  │    │ • Error handling │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌──────────────────┐
+                    │   Core Modules   │
+                    │                  │
+                    │ • google_auth.py │
+                    │ • event_parser.py│
+                    │ • gmail_fetcher.py│
+                    │ • google_calendar.py│
+                    └──────────────────┘
+```
+
 ## Security Notes
 
 - Never commit `credentials.json` or `token.json` to version control
 - Keep your `.env` file private and never share API keys
 - The `.gitignore` file is configured to exclude sensitive files
+- All API calls use HTTPS and proper authentication
+- Input validation and sanitization throughout the system
+- Error messages designed to avoid information leakage
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Run the test suite: `python run_tests.py`
+4. Ensure all tests pass and coverage is maintained
+5. Submit a pull request with detailed description
 
 ## License
 

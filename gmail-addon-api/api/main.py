@@ -45,6 +45,7 @@ from .models.responses import (
     HealthResponse
 )
 from .config import get_settings
+from .auth import require_authentication, optional_authentication, flexible_authentication
 
 # Environment configuration
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
@@ -135,14 +136,14 @@ async def health_check():
         )
 
 @app.post("/api/parse-email", response_model=ParseEmailResponse)
-async def parse_email(request: EmailProcessRequest):
+async def parse_email(request: EmailProcessRequest, user: dict = Depends(flexible_authentication)):
     """
     Parse email content and extract event details using Vertex AI.
 
     This endpoint uses the existing modules.event_parser.extract_event_details function.
     """
     try:
-        logger.info(f"Parsing email content ({len(request.email_content)} characters)")
+        logger.info(f"Parsing email content for user: {user.get('email', 'unknown')} ({len(request.email_content)} characters)")
 
         # Use existing event_parser module
         event_data = extract_event_details(
@@ -225,24 +226,36 @@ async def fetch_email_by_gmail_id(request: GmailIdRequest):
         )
 
 @app.post("/api/create-event", response_model=CreateEventResponse)
-async def create_event(request: EventCreateRequest):
+async def create_event(request: EventCreateRequest, user: dict = Depends(flexible_authentication)):
     """
     Create Google Calendar event.
 
     This endpoint uses the existing modules.google_calendar.Calendar function.
     """
     try:
-        logger.info(f"Creating calendar event: {request.event_data.get('summary', 'Unknown')}")
+        logger.info(f"Creating calendar event for user: {user.get('email', 'unknown')}: {request.event_data.get('summary', 'Unknown')}")
 
         # Use existing google_calendar module
         result = Calendar(request.event_data)
 
+        if not result:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create calendar event"
+            )
+
         logger.info("Calendar event created successfully")
+
+        # Extract calendar link from result
+        calendar_link = result.get('htmlLink') if result else None
+        event_id = result.get('id') if result else None
 
         return CreateEventResponse(
             success=True,
             calendar_result=result,
             event_data=request.event_data,
+            calendar_link=calendar_link,
+            event_id=event_id,
             message="Calendar event created successfully"
         )
 

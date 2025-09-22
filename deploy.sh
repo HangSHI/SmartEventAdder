@@ -24,8 +24,11 @@ gcloud run deploy $SERVICE_NAME \
     --region $REGION \
     --allow-unauthenticated \
     --memory 1Gi \
-    --cpu 1 \
-    --max-instances 10 \
+    --cpu 0.17 \
+    --max-instances 3 \
+    --min-instances 0 \
+    --concurrency 10 \
+    --timeout 180 \
     --set-env-vars "ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=$REGION" \
     --project $PROJECT_ID
 
