@@ -18,8 +18,8 @@ echo "Region: $REGION"
 
 # Build and deploy using Cloud Run source deployment (simpler than Docker)
 gcloud run deploy $SERVICE_NAME \
-    --source .. \
-    --dockerfile deployment/Dockerfile \
+    --source . \
+    --dockerfile Dockerfile \
     --platform managed \
     --region $REGION \
     --allow-unauthenticated \
