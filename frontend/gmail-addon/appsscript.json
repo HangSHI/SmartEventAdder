@@ -1,0 +1,32 @@
+{
+  "timeZone": "Asia/Tokyo",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Smart Event Adder",
+      "logoUrl": "https://developers.google.com/gmail/add-ons/images/gmail-add-on-icon.png",
+      "useLocaleFromApp": true
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "buildCardForEmail"
+        }
+      ],
+      "primaryColor": "#4285F4",
+      "openLinkUrlPrefixes": [
+        "https://mail.google.com/",
+        "https://calendar.google.com/"
+      ]
+    }
+  }
+}
