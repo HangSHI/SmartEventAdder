@@ -1,6 +1,6 @@
 # SmartEventAdder
 
-A Python application that uses AI to parse event information and automatically add events to Google Calendar.
+A Python application that uses AI to parse event information and automatically add events to Google Calendar. Now includes a production-ready Gmail add-on with FastAPI backend deployed on Google Cloud Run.
 
 ## Project Structure
 
@@ -13,7 +13,25 @@ SmartEventAdder/
 │   ├── google_calendar.py    # The "Hands" - All Google Calendar API logic
 │   └── gmail_fetcher.py      # The "Eyes" - Gmail API integration for email fetching
 │
-├── tests/                    # Comprehensive unit and integration tests
+├── gmail-addon-api/          # Production Gmail Add-on API Backend
+│   └── api/                  # FastAPI application
+│       ├── __init__.py       # Makes 'api' a Python package
+│       ├── main.py           # FastAPI app with REST endpoints
+│       ├── config.py         # API configuration settings
+│       └── models/           # Pydantic models for requests/responses
+│           ├── __init__.py   # Makes 'models' a Python package
+│           ├── requests.py   # Request models for API endpoints
+│           └── responses.py  # Response models for API endpoints
+│
+├── frontend/                 # Gmail Add-on Frontend (Google Apps Script)
+│   ├── gmail-addon/          # Apps Script project files
+│   │   ├── Code.gs           # Main Gmail add-on implementation
+│   │   └── appsscript.json   # Apps Script configuration
+│   └── tests/                # Frontend test suite
+│       ├── TestSuite.gs      # Comprehensive test cases (85+ tests)
+│       └── COMPREHENSIVE_TESTING_GUIDE.md # Complete testing documentation
+│
+├── tests/                    # Backend unit and integration tests
 │   ├── __init__.py           # Makes 'tests' a Python package
 │   ├── test_main.py          # Unit tests for main.py orchestrator (36 test cases)
 │   ├── test_event_parser.py  # Unit tests for event_parser module
@@ -25,6 +43,8 @@ SmartEventAdder/
 ├── main.py                   # The "Orchestrator" - Complete workflow from email to calendar
 ├── run_tests.py              # Test runner script
 ├── pytest.ini               # Pytest configuration
+├── Dockerfile                # Multi-stage Docker build for Cloud Run deployment
+├── deploy.sh                 # Cloud Run deployment script
 ├── setup_gcloud.sh           # Google Cloud authentication setup script (deprecated - OAuth2 recommended)
 ├── sample_emails/            # Sample email files for testing
 │   ├── meeting_invite.txt    # Weekly team meeting example
@@ -39,6 +59,7 @@ SmartEventAdder/
 
 ## Features
 
+### Core Functionality
 - **Complete Workflow Orchestration**: End-to-end automation from email text to calendar event
 - **AI-Powered Event Parsing**: Uses Google Vertex AI (Gemini 1.5 Flash) to extract event information from natural language text
 - **Google Calendar Integration**: Automatically creates events in your Google Calendar
@@ -47,7 +68,16 @@ SmartEventAdder/
 - **Input Validation & Security**: Sanitizes input and validates data before processing
 - **User Confirmation**: Review extracted details before creating calendar events
 - **Unified OAuth 2.0 Authentication**: Dedicated authentication module for all Google APIs with single sign-on
-- **Simplified Authentication Architecture**: Centralized auth logic in `google_auth.py` module
+
+### Production Gmail Add-on
+- **🚀 Live Production API**: Deployed on Google Cloud Run at `https://smarteventadder-api-6qqmniwadq-an.a.run.app`
+- **📧 Gmail Add-on Integration**: Complete Gmail add-on with Apps Script frontend
+- **⚡ FastAPI Backend**: Production-ready REST API with comprehensive endpoints
+- **🔒 CORS Security**: Configured for Gmail and Apps Script integration
+- **📊 API Documentation**: Interactive Swagger UI at `/docs` endpoint
+- **💰 Cost-Optimized**: 0.17 vCPU, 512Mi memory, estimated $1-8/month
+- **🎛️ Enhanced UI**: Editable form cards with user review and calendar link integration
+- **🧪 Comprehensive Testing**: 85+ frontend test cases with complete testing guide
 
 ## Setup
 
@@ -107,6 +137,76 @@ GOOGLE_CLOUD_LOCATION=asia-northeast1
 ```
 
 **Note:** The setup script will help you identify your project ID. Tokyo region (`asia-northeast1`) is recommended for users in Japan.
+
+## Production Gmail Add-on API
+
+### Live API Endpoints
+
+The SmartEventAdder API is deployed and ready for production use:
+
+- **🌐 Base URL**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app`
+- **📚 API Documentation**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app/docs`
+- **❤️ Health Check**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/health`
+
+### Available API Endpoints
+
+| Endpoint | Method | Description | Purpose |
+|----------|--------|-------------|---------|
+| `/` | GET | Root endpoint | Basic service info |
+| `/api/health` | GET | Health check | Service status monitoring |
+| `/api/parse-email` | POST | Parse email content | Extract event details using Vertex AI |
+| `/api/fetch-email-by-message-id` | POST | Fetch by Message-ID | Get email content from Gmail using Message-ID header |
+| `/api/fetch-email-by-gmail-id` | POST | Fetch by Gmail ID | Get email content from Gmail using API message ID |
+| `/api/create-event` | POST | Create calendar event | Add event to Google Calendar |
+| `/api/complete-workflow` | POST | Complete workflow | Full pipeline: fetch → parse → create event |
+| `/api/config` | GET | API configuration | Get service configuration (non-sensitive) |
+
+### API Usage Examples
+
+```bash
+# Check API health
+curl https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/health
+
+# Parse email content
+curl -X POST "https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/parse-email" \
+  -H "Content-Type: application/json" \
+  -d '{"email_content": "Team meeting tomorrow at 2pm in conference room A"}'
+
+# Complete workflow with Message-ID
+curl -X POST "https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/complete-workflow" \
+  -H "Content-Type: application/json" \
+  -d '{"message_id": "your-message-id-here", "create_event": true}'
+```
+
+### Gmail Add-on Frontend
+
+The Gmail add-on frontend is built with Google Apps Script and integrates seamlessly with the production API:
+
+- **📍 Location**: `frontend/gmail-addon/Code.gs`
+- **🔧 Configuration**: `frontend/gmail-addon/appsscript.json`
+- **🧪 Test Suite**: `frontend/tests/TestSuite.gs` (85+ test cases)
+- **📖 Testing Guide**: `frontend/tests/COMPREHENSIVE_TESTING_GUIDE.md`
+
+**Key Features:**
+- **Editable Forms**: Users can review and edit AI-extracted event details
+- **Enhanced Success Cards**: Direct calendar links and event management
+- **Real-time API Integration**: Communicates with production backend
+- **Error Handling**: Comprehensive error messages and fallback options
+
+### Deployment Information
+
+**Infrastructure:**
+- **Platform**: Google Cloud Run (asia-northeast1)
+- **Container**: Multi-stage Docker build
+- **Resources**: 0.17 vCPU, 512Mi memory, max 3 instances
+- **Scaling**: Auto-scaling from 0 to 3 instances
+- **Estimated Cost**: $1-8/month (cost-optimized configuration)
+
+**Security:**
+- **Authentication**: OAuth 2.0 with Google APIs
+- **CORS**: Configured for Gmail and Apps Script origins
+- **Container**: Non-root user, minimal attack surface
+- **Network**: HTTPS only, managed by Google Cloud Run
 
 ## Usage
 
@@ -474,6 +574,105 @@ python run_tests.py
 
 **Note:** All integration tests are designed to be safe and use minimal API quotas.
 
+## Production Deployment
+
+### Deploying the API Backend
+
+The SmartEventAdder API can be deployed to Google Cloud Run using the included deployment scripts:
+
+#### Prerequisites
+
+1. **Google Cloud CLI**: Install and authenticate `gcloud`
+2. **Docker**: Required for containerization (handled by Cloud Build)
+3. **Google Cloud Project**: With billing enabled
+4. **APIs Enabled**: Cloud Run, Cloud Build, Artifact Registry
+
+#### Quick Deployment
+
+```bash
+# Make deployment script executable
+chmod +x deploy.sh
+
+# Deploy to Cloud Run (replace with your project ID)
+./deploy.sh your-project-id
+
+# Example with specific region
+./deploy.sh your-project-id us-central1
+```
+
+#### Deployment Configuration
+
+The deployment uses cost-optimized settings defined in `deploy.sh`:
+
+```bash
+# Resource Configuration
+--memory 512Mi              # Memory limit (required for 0.17 CPU)
+--cpu 0.17                  # Fractional CPU (cost-optimized)
+--max-instances 3           # Maximum scaling instances
+--min-instances 0           # Scale to zero when not in use
+--concurrency 1             # Single request per instance (required for sub-1 CPU)
+--timeout 180               # Request timeout (3 minutes for AI processing)
+
+# Environment Variables
+ENVIRONMENT=production
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+GOOGLE_CLOUD_LOCATION=your-region
+```
+
+#### Deployment Output
+
+Successful deployment provides:
+
+```
+✅ Deployment completed!
+Service URL: https://your-service-url.run.app
+Health check: https://your-service-url.run.app/api/health
+API docs: https://your-service-url.run.app/docs
+```
+
+#### Cost Estimation
+
+With the optimized configuration:
+- **Monthly Cost**: $1-8 (for typical usage)
+- **Pricing Factors**: CPU time, memory usage, requests, egress
+- **Cost Savings**: 70-80% reduction vs standard 1 vCPU configuration
+
+#### Monitoring and Maintenance
+
+```bash
+# Check service status
+gcloud run services describe smarteventadder-api --region=asia-northeast1
+
+# View logs
+gcloud logs read --service=smarteventadder-api --region=asia-northeast1
+
+# Update service (redeploy)
+./deploy.sh your-project-id
+```
+
+### Dockerfile Configuration
+
+The multi-stage Docker build (`Dockerfile`) optimizes for production:
+
+```dockerfile
+# Features:
+- Multi-stage build (reduces image size)
+- Non-root user (security)
+- Production-optimized Python dependencies
+- Health check endpoint
+- Proper PYTHONPATH configuration
+- Cloud Run port handling (8080)
+```
+
+### Frontend Deployment
+
+The Gmail add-on frontend is deployed via Google Apps Script:
+
+1. **Apps Script Console**: `https://script.google.com`
+2. **Create New Project**: Copy code from `frontend/gmail-addon/Code.gs`
+3. **Configure Manifest**: Use `frontend/gmail-addon/appsscript.json`
+4. **Enable APIs**: Gmail API, Calendar API in Apps Script
+5. **Deploy as Add-on**: Follow Google Workspace Add-on deployment guide
 
 ## Security Notes
 
