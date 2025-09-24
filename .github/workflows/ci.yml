@@ -30,26 +30,53 @@ jobs:
     - name: Run Gitleaks Secret Scanner
       run: |
         echo "🔍 Running Gitleaks comprehensive secret detection..."
-        echo "Scanning entire repository for secrets..."
-
-        # Run Gitleaks with JSON output
-        gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose || echo "Gitleaks scan completed"
-
-        # Also run with text output for immediate visibility
+        echo "Current working directory: $(pwd)"
+        echo "Files in directory:"
+        ls -la
+        echo "Looking for temp files:"
+        find . -name "temp_*" -type f
         echo ""
-        echo "🔍 Gitleaks detailed output:"
-        gitleaks detect --source . --verbose || true
+        echo "Sample content from temp files:"
+        if [ -f temp_secrets_test.py ]; then
+          echo "🔍 temp_secrets_test.py preview:"
+          head -20 temp_secrets_test.py | grep -E "(AWS|GITHUB|SECRET|TOKEN)" || echo "No obvious secrets in preview"
+        fi
+        echo ""
 
-        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
-          echo ""
-          echo "🚨 SECRETS DETECTED BY GITLEAKS!"
-          FINDINGS_COUNT=$(jq length gitleaks-report.json 2>/dev/null || echo "unknown")
-          echo "Number of findings: $FINDINGS_COUNT"
-          echo ""
-          echo "Summary of findings:"
-          jq -r '.[] | "🚨 " + .RuleID + " in " + .File + ":" + (.Line|tostring) + " - " + .Secret[0:50] + "..."' gitleaks-report.json 2>/dev/null || cat gitleaks-report.json
+        # Run Gitleaks with proper error handling
+        echo "🔍 Running Gitleaks scan..."
+        gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=false 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
+
+        # Check if report was generated
+        echo ""
+        echo "📄 Checking for generated reports..."
+        ls -la *.json *.log 2>/dev/null || echo "No report files found"
+
+        if [ -f gitleaks-report.json ]; then
+          echo "📋 gitleaks-report.json exists, size: $(wc -c < gitleaks-report.json) bytes"
+          if [ -s gitleaks-report.json ]; then
+            echo ""
+            echo "🚨 SECRETS DETECTED BY GITLEAKS!"
+            FINDINGS_COUNT=$(jq length gitleaks-report.json 2>/dev/null || echo "parse_error")
+            echo "Number of findings: $FINDINGS_COUNT"
+            echo ""
+            echo "📋 Full report content:"
+            cat gitleaks-report.json
+            echo ""
+            echo "🔍 Parsed findings:"
+            jq -r '.[] | "🚨 " + .RuleID + " in " + .File + ":" + (.Line|tostring) + " - Secret: " + .Secret' gitleaks-report.json 2>/dev/null || echo "Failed to parse JSON"
+          else
+            echo "⚠️ gitleaks-report.json is empty"
+          fi
         else
-          echo "✅ No secrets detected by Gitleaks"
+          echo "❌ gitleaks-report.json was not created"
+        fi
+
+        # Show any output logs
+        if [ -f gitleaks-output.log ]; then
+          echo ""
+          echo "📋 Gitleaks execution log:"
+          cat gitleaks-output.log
         fi
 
     - name: Set up Python for Security Tools
