@@ -4,15 +4,15 @@
 
 set -e
 
-# Hardcoded credentials (should be detected)
-export AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
-export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-export DATABASE_PASSWORD="hardcoded_db_password_123"
+# Hardcoded credentials (UPDATED - should be detected)
+export AWS_ACCESS_KEY_ID="AKIA5F6G7H8I9J0K1L2M"
+export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYUpdatedShellKey2024"
+export DATABASE_PASSWORD="updated_hardcoded_db_password_789"
 
-# More secret patterns
-DOCKER_PASSWORD="docker_registry_password_123"
-GITHUB_TOKEN="ghp_fake_github_personal_access_token_123"
-SLACK_TOKEN="xoxb-fake-slack-bot-token-1234567890"
+# More secret patterns (UPDATED)
+DOCKER_PASSWORD="updated_docker_registry_password_456"
+GITHUB_TOKEN="ghp_UpdatedGitHubPersonalAccessToken2024ABC"
+SLACK_TOKEN="xoxb-updated-slack-bot-token-2024567890"
 
 echo "Starting deployment with secrets..."
 

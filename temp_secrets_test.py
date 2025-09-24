@@ -10,12 +10,12 @@ import requests
 
 # TEST SECRETS - These should be detected by security scanners
 
-# 1. AWS API Keys (more realistic patterns)
-AWS_ACCESS_KEY_ID = "AKIA2E2CVDF4HNJ6XKWQ"
-AWS_SECRET_ACCESS_KEY = "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"
+# 1. AWS API Keys (updated realistic patterns)
+AWS_ACCESS_KEY_ID = "AKIA3M7X9B2C8D4E5F6G"
+AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYzQvBnM2kL8"
 
-# 2. GitHub Token (more realistic pattern)
-GITHUB_TOKEN = "ghp_2K4jF9xN8mB5cQ7rT3pL6vX1zE4wY0sA9iH"
+# 2. GitHub Token (updated realistic pattern)
+GITHUB_TOKEN = "ghp_8K9jL3mN5bP7cR2tS6vW1xY4zA0eB9fG"
 
 # 3. Google API Key (should be detected by Gitleaks)
 GOOGLE_API_KEY = "AIzaSyDdI0hCZtE6vySjMIjEyAgRabcdefghijk"
@@ -49,14 +49,14 @@ def generate_token():
 # 9. Hard-coded JWT secret (should be detected by multiple tools)
 JWT_SECRET = "my_super_secret_jwt_key_12345"
 
-# 10. Slack webhook (should be detected by Gitleaks)
-SLACK_WEBHOOK = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+# 10. Slack webhook (updated)
+SLACK_WEBHOOK = "https://hooks.slack.com/services/T12345678/B87654321/NewSlackWebhookTokenForTestingABC123"
 
-# 11. Cryptocurrency private key (should be detected by Gitleaks)
+# 11. Cryptocurrency private key (updated)
 BITCOIN_PRIVATE_KEY = "5KJvsngHeMpm884wtkJNzQGaCErckhHJBGFsvd3VyK5qMZXj3hS"
 
-# 12. OAuth tokens
-OAUTH_TOKEN = "ya29.a0AfH6SMC9nEeq4E7cWm5HnZgJO7G8BwKL_example_token"
+# 12. OAuth tokens (updated)
+OAUTH_TOKEN = "ya29.a0AfH6SMD8pFfr5G8dXn6IqZhKP8H9CxMN_updated_token_456"
 
 # 13. Firebase config (should be detected)
 FIREBASE_CONFIG = {
