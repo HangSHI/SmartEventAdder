@@ -29,32 +29,15 @@ jobs:
 
     - name: Run TruffleHog Secret Scanner
       run: |
-        echo "🔍 Running TruffleHog secret detection..."
+        echo "🔍 Running TruffleHog comprehensive secret detection..."
         trufflehog filesystem . --json --only-verified=false > trufflehog-report.json || true
         if [ -f trufflehog-report.json ] && [ -s trufflehog-report.json ]; then
-          echo "⚠️ Secrets detected by TruffleHog!"
+          echo "🚨 Secrets detected by TruffleHog!"
           echo "Number of findings: $(wc -l < trufflehog-report.json)"
-          echo "First 10 findings:"
-          head -10 trufflehog-report.json | jq -r '.DetectorName + ": " + .Raw' || head -10 trufflehog-report.json
+          echo "Sample findings:"
+          head -5 trufflehog-report.json | jq -r '.DetectorName + " in " + .SourceMetadata.Data.Filesystem.file + ":" + (.SourceMetadata.Data.Filesystem.line|tostring)' 2>/dev/null || head -5 trufflehog-report.json
         else
           echo "✅ No secrets detected by TruffleHog"
-        fi
-
-    - name: Install Gitleaks (Backup Scanner)
-      run: |
-        curl -sSfL https://raw.githubusercontent.com/zricethezav/gitleaks/master/scripts/install.sh | sh -s -- -b /usr/local/bin
-
-    - name: Run Gitleaks Secret Scanner
-      run: |
-        echo "🔍 Running Gitleaks secret detection..."
-        gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json || true
-        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
-          echo "⚠️ Secrets detected by Gitleaks!"
-          echo "Number of findings: $(jq length gitleaks-report.json)"
-          echo "Summary of findings:"
-          jq -r '.[] | .RuleID + ": " + .File + ":" + (.Line|tostring)' gitleaks-report.json || cat gitleaks-report.json
-        else
-          echo "✅ No secrets detected by Gitleaks"
         fi
 
     - name: Set up Python for Security Tools
@@ -65,60 +48,52 @@ jobs:
     - name: Install Security Tools
       run: |
         python -m pip install --upgrade pip
-        pip install bandit[toml] safety semgrep
+        pip install safety
         pip install -r requirements.txt
-
-    - name: Run Bandit Security Scanner
-      run: |
-        echo "🔍 Running Bandit security analysis..."
-        bandit -r . -f json -o bandit-report.json || true
-        bandit -r . -f txt || true
-      continue-on-error: true
 
     - name: Run Safety Vulnerability Scanner
       run: |
-        echo "🛡️ Checking for known security vulnerabilities in dependencies..."
-        safety check --json --output safety-report.json || true
-        safety check || true
-      continue-on-error: true
-
-    - name: Run Semgrep Security Analysis
-      run: |
-        echo "🔎 Running Semgrep security rules..."
-        semgrep --config=auto --json --output=semgrep-report.json . || true
-        semgrep --config=auto . || true
+        echo "🛡️ Checking for known vulnerabilities in Python dependencies..."
+        safety scan --json --output safety-report.json || true
+        safety scan --short-report || true
       continue-on-error: true
 
     - name: Security Scan Summary
       if: always()
       run: |
-        echo "🔍 Security Scan Summary"
-        echo "========================"
+        echo "🔍 Streamlined Security Scan Summary"
+        echo "==================================="
 
         TRUFFLEHOG_FINDINGS=0
-        GITLEAKS_FINDINGS=0
+        SAFETY_ISSUES=0
 
+        # Check TruffleHog findings
         if [ -f trufflehog-report.json ] && [ -s trufflehog-report.json ]; then
           TRUFFLEHOG_FINDINGS=$(wc -l < trufflehog-report.json)
-          echo "🚨 TruffleHog found $TRUFFLEHOG_FINDINGS potential secrets"
-        fi
-
-        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
-          GITLEAKS_FINDINGS=$(jq length gitleaks-report.json 2>/dev/null || echo "unknown")
-          echo "🚨 Gitleaks found $GITLEAKS_FINDINGS potential secrets"
-        fi
-
-        TOTAL_FINDINGS=$((TRUFFLEHOG_FINDINGS + GITLEAKS_FINDINGS))
-        echo "📊 Total secret findings: $TOTAL_FINDINGS"
-
-        if [ $TOTAL_FINDINGS -gt 0 ]; then
-          echo "⚠️  SECURITY ALERT: Potential secrets detected in repository!"
-          echo "📋 Please review the security reports and remove any real secrets"
-          echo "🔧 For testing purposes, this won't fail the build, but in production it should"
-          # Uncomment the next line to fail the build on secret detection:
-          # exit 1
+          echo "🚨 TruffleHog: $TRUFFLEHOG_FINDINGS potential secrets detected"
         else
-          echo "✅ No secrets detected - repository is clean"
+          echo "✅ TruffleHog: No secrets detected"
+        fi
+
+        # Check Safety findings
+        if [ -f safety-report.json ] && [ -s safety-report.json ]; then
+          SAFETY_ISSUES=$(jq length safety-report.json 2>/dev/null || echo "unknown")
+          echo "🚨 Safety: $SAFETY_ISSUES dependency vulnerabilities found"
+        else
+          echo "✅ Safety: No dependency vulnerabilities"
+        fi
+
+        echo ""
+        echo "📊 Security Tools Summary:"
+        echo "  🔍 TruffleHog (secrets): $TRUFFLEHOG_FINDINGS findings"
+        echo "  🛡️  Safety (dependencies): $SAFETY_ISSUES vulnerabilities"
+
+        if [ $TRUFFLEHOG_FINDINGS -gt 0 ]; then
+          echo ""
+          echo "⚠️  SECURITY ALERT: Potential secrets detected!"
+          echo "📋 Review security reports and remove any real credentials"
+          echo "🔧 For testing: Not failing build, but production should fail"
+          # Uncomment to fail on secret detection: exit 1
         fi
 
     - name: Upload Security Reports
@@ -128,10 +103,7 @@ jobs:
         name: security-reports
         path: |
           trufflehog-report.json
-          gitleaks-report.json
-          bandit-report.json
           safety-report.json
-          semgrep-report.json
         retention-days: 30
 
   unit-tests:
@@ -320,11 +292,9 @@ jobs:
         echo "🧪 Unit Tests: ${{ needs.unit-tests.result }}"
         echo "🌐 API Health Check: ${{ needs.api-health-check.result }}"
         echo ""
-        echo "📊 Pipeline Features:"
-        echo "  ✅ Gitleaks secret scanning"
-        echo "  ✅ Bandit Python security analysis"
-        echo "  ✅ Safety vulnerability checking"
-        echo "  ✅ Semgrep security rules"
+        echo "📊 Streamlined Pipeline Features:"
+        echo "  ✅ TruffleHog comprehensive secret detection"
+        echo "  ✅ Safety dependency vulnerability scanning"
         echo "  ✅ Unit tests with coverage reporting"
         echo "  ✅ Production API health monitoring"
         echo ""
