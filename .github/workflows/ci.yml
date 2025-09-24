@@ -23,7 +23,24 @@ jobs:
       with:
         fetch-depth: 0  # Full history for better secret detection
 
-    - name: Install Gitleaks
+    - name: Install TruffleHog
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+
+    - name: Run TruffleHog Secret Scanner
+      run: |
+        echo "🔍 Running TruffleHog secret detection..."
+        trufflehog filesystem . --json --only-verified=false > trufflehog-report.json || true
+        if [ -f trufflehog-report.json ] && [ -s trufflehog-report.json ]; then
+          echo "⚠️ Secrets detected by TruffleHog!"
+          echo "Number of findings: $(wc -l < trufflehog-report.json)"
+          echo "First 10 findings:"
+          head -10 trufflehog-report.json | jq -r '.DetectorName + ": " + .Raw' || head -10 trufflehog-report.json
+        else
+          echo "✅ No secrets detected by TruffleHog"
+        fi
+
+    - name: Install Gitleaks (Backup Scanner)
       run: |
         curl -sSfL https://raw.githubusercontent.com/zricethezav/gitleaks/master/scripts/install.sh | sh -s -- -b /usr/local/bin
 
@@ -32,10 +49,12 @@ jobs:
         echo "🔍 Running Gitleaks secret detection..."
         gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json || true
         if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
-          echo "⚠️ Secrets detected! Check gitleaks-report.json"
-          cat gitleaks-report.json
+          echo "⚠️ Secrets detected by Gitleaks!"
+          echo "Number of findings: $(jq length gitleaks-report.json)"
+          echo "Summary of findings:"
+          jq -r '.[] | .RuleID + ": " + .File + ":" + (.Line|tostring)' gitleaks-report.json || cat gitleaks-report.json
         else
-          echo "✅ No secrets detected"
+          echo "✅ No secrets detected by Gitleaks"
         fi
 
     - name: Set up Python for Security Tools
@@ -70,12 +89,45 @@ jobs:
         semgrep --config=auto . || true
       continue-on-error: true
 
+    - name: Security Scan Summary
+      if: always()
+      run: |
+        echo "🔍 Security Scan Summary"
+        echo "========================"
+
+        TRUFFLEHOG_FINDINGS=0
+        GITLEAKS_FINDINGS=0
+
+        if [ -f trufflehog-report.json ] && [ -s trufflehog-report.json ]; then
+          TRUFFLEHOG_FINDINGS=$(wc -l < trufflehog-report.json)
+          echo "🚨 TruffleHog found $TRUFFLEHOG_FINDINGS potential secrets"
+        fi
+
+        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
+          GITLEAKS_FINDINGS=$(jq length gitleaks-report.json 2>/dev/null || echo "unknown")
+          echo "🚨 Gitleaks found $GITLEAKS_FINDINGS potential secrets"
+        fi
+
+        TOTAL_FINDINGS=$((TRUFFLEHOG_FINDINGS + GITLEAKS_FINDINGS))
+        echo "📊 Total secret findings: $TOTAL_FINDINGS"
+
+        if [ $TOTAL_FINDINGS -gt 0 ]; then
+          echo "⚠️  SECURITY ALERT: Potential secrets detected in repository!"
+          echo "📋 Please review the security reports and remove any real secrets"
+          echo "🔧 For testing purposes, this won't fail the build, but in production it should"
+          # Uncomment the next line to fail the build on secret detection:
+          # exit 1
+        else
+          echo "✅ No secrets detected - repository is clean"
+        fi
+
     - name: Upload Security Reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
         path: |
+          trufflehog-report.json
           gitleaks-report.json
           bandit-report.json
           safety-report.json
