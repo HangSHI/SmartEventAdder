@@ -23,36 +23,33 @@ jobs:
       with:
         fetch-depth: 0  # Full history for better secret detection
 
-    - name: Install TruffleHog
+    - name: Install Gitleaks
       run: |
-        curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+        curl -sSfL https://raw.githubusercontent.com/zricethezav/gitleaks/master/scripts/install.sh | sh -s -- -b /usr/local/bin
 
-    - name: Run TruffleHog Secret Scanner
+    - name: Run Gitleaks Secret Scanner
       run: |
-        echo "🔍 Running TruffleHog comprehensive secret detection..."
-        echo "Scanning all files in repository..."
+        echo "🔍 Running Gitleaks comprehensive secret detection..."
+        echo "Scanning entire repository for secrets..."
 
-        # Run TruffleHog with verbose output and comprehensive scanning
-        trufflehog filesystem . \
-          --json \
-          --only-verified=false \
-          --no-update \
-          --fail \
-          > trufflehog-report.json 2>&1 || echo "TruffleHog completed scan"
+        # Run Gitleaks with JSON output
+        gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose || echo "Gitleaks scan completed"
 
         # Also run with text output for immediate visibility
-        echo "🔍 TruffleHog text output:"
-        trufflehog filesystem . --only-verified=false --no-update || true
+        echo ""
+        echo "🔍 Gitleaks detailed output:"
+        gitleaks detect --source . --verbose || true
 
-        if [ -f trufflehog-report.json ] && [ -s trufflehog-report.json ]; then
+        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
           echo ""
-          echo "🚨 SECRETS DETECTED BY TRUFFLEHOG!"
-          echo "Number of findings: $(wc -l < trufflehog-report.json)"
+          echo "🚨 SECRETS DETECTED BY GITLEAKS!"
+          FINDINGS_COUNT=$(jq length gitleaks-report.json 2>/dev/null || echo "unknown")
+          echo "Number of findings: $FINDINGS_COUNT"
           echo ""
-          echo "Sample findings:"
-          head -10 trufflehog-report.json || true
+          echo "Summary of findings:"
+          jq -r '.[] | "🚨 " + .RuleID + " in " + .File + ":" + (.Line|tostring) + " - " + .Secret[0:50] + "..."' gitleaks-report.json 2>/dev/null || cat gitleaks-report.json
         else
-          echo "✅ No secrets detected by TruffleHog"
+          echo "✅ No secrets detected by Gitleaks"
         fi
 
     - name: Set up Python for Security Tools
@@ -79,20 +76,20 @@ jobs:
         echo "🔍 Streamlined Security Scan Summary"
         echo "==================================="
 
-        TRUFFLEHOG_FINDINGS=0
+        GITLEAKS_FINDINGS=0
         SAFETY_ISSUES=0
 
-        # Check TruffleHog findings
-        if [ -f trufflehog-report.json ] && [ -s trufflehog-report.json ]; then
-          TRUFFLEHOG_FINDINGS=$(wc -l < trufflehog-report.json)
-          echo "🚨 TruffleHog: $TRUFFLEHOG_FINDINGS potential secrets detected"
+        # Check Gitleaks findings
+        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
+          GITLEAKS_FINDINGS=$(jq length gitleaks-report.json 2>/dev/null || echo "0")
+          echo "🚨 Gitleaks: $GITLEAKS_FINDINGS potential secrets detected"
         else
-          echo "✅ TruffleHog: No secrets detected"
+          echo "✅ Gitleaks: No secrets detected"
         fi
 
         # Check Safety findings
         if [ -f safety-report.json ] && [ -s safety-report.json ]; then
-          SAFETY_ISSUES=$(jq length safety-report.json 2>/dev/null || echo "unknown")
+          SAFETY_ISSUES=$(jq length safety-report.json 2>/dev/null || echo "0")
           echo "🚨 Safety: $SAFETY_ISSUES dependency vulnerabilities found"
         else
           echo "✅ Safety: No dependency vulnerabilities"
@@ -100,10 +97,10 @@ jobs:
 
         echo ""
         echo "📊 Security Tools Summary:"
-        echo "  🔍 TruffleHog (secrets): $TRUFFLEHOG_FINDINGS findings"
+        echo "  🔍 Gitleaks (secrets): $GITLEAKS_FINDINGS findings"
         echo "  🛡️  Safety (dependencies): $SAFETY_ISSUES vulnerabilities"
 
-        if [ $TRUFFLEHOG_FINDINGS -gt 0 ]; then
+        if [ "$GITLEAKS_FINDINGS" != "0" ] && [ "$GITLEAKS_FINDINGS" != "unknown" ]; then
           echo ""
           echo "🚨 SECURITY ALERT: Secrets detected in repository!"
           echo "📋 Please review and remove ALL detected secrets before proceeding"
@@ -124,7 +121,7 @@ jobs:
       with:
         name: security-reports
         path: |
-          trufflehog-report.json
+          gitleaks-report.json
           safety-report.json
         retention-days: 30
 
@@ -315,7 +312,7 @@ jobs:
         echo "🌐 API Health Check: ${{ needs.api-health-check.result }}"
         echo ""
         echo "🛡️  Security-First Pipeline Features:"
-        echo "  🚨 TruffleHog secret detection (FAILS on detection)"
+        echo "  🚨 Gitleaks secret detection (FAILS on detection)"
         echo "  🔍 Safety dependency vulnerability scanning"
         echo "  ✅ Unit tests with coverage reporting"
         echo "  ✅ Production API health monitoring"
