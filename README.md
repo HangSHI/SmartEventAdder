@@ -1,6 +1,25 @@
 # SmartEventAdder
 
-A Python application that uses AI to parse event information and automatically add events to Google Calendar. Now includes a production-ready Gmail add-on with FastAPI backend deployed on Google Cloud Run.
+## 🤖 AI Agent for Email-to-Calendar Automation
+
+**SmartEventAdder is an intelligent AI agent** that processes emails, extracts event information using Gemini, and seamlessly creates Google Calendar events. 
+
+### Agent Capabilities
+- **🧠 Intelligent Email Analysis**: Uses Google Vertex AI (Gemini 1.5 Flash) to understand natural language and extract structured event data
+- **🔄 Autonomous Workflow Execution**: Handles the complete pipeline from email input to calendar event creation without manual intervention
+- **🌐 Multi-API Integration**: Orchestrates Gmail API, Google Calendar API, and Vertex AI API calls intelligently
+
+
+## 🚀 Quick Start
+
+**Want to try it immediately?**
+
+1. **Test the API**: `python test_api.py` (basic connectivity test)
+2. **Deploy Gmail Add-on**: Copy `frontend/gmail-addon/Code.gs` to [Apps Script](https://script.google.com)
+3. **Run Tests**: Copy `frontend/tests/ProductionAPITest.gs` and run `runAllProductionAPITests()`
+4. **Use in Gmail**: Deploy as test add-on and try with real emails
+
+**Live Production API**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app`
 
 ## Project Structure
 
@@ -14,22 +33,24 @@ SmartEventAdder/
 │   └── gmail_fetcher.py      # The "Eyes" - Gmail API integration for email fetching
 │
 ├── gmail-addon-api/          # Production Gmail Add-on API Backend
-│   └── api/                  # FastAPI application
-│       ├── __init__.py       # Makes 'api' a Python package
-│       ├── main.py           # FastAPI app with REST endpoints
-│       ├── config.py         # API configuration settings
-│       └── models/           # Pydantic models for requests/responses
-│           ├── __init__.py   # Makes 'models' a Python package
-│           ├── requests.py   # Request models for API endpoints
-│           └── responses.py  # Response models for API endpoints
+│   ├── api/                  # FastAPI application
+│   │   ├── __init__.py       # Makes 'api' a Python package
+│   │   ├── main.py           # FastAPI app with REST endpoints
+│   │   ├── config.py         # API configuration settings
+│   │   └── models/           # Pydantic models for requests/responses
+│   │       ├── __init__.py   # Makes 'models' a Python package
+│   │       ├── requests.py   # Request models for API endpoints
+│   │       └── responses.py  # Response models for API endpoints
+│   └── tests/                # Backend API tests
+│       ├── __init__.py       # Makes 'tests' a Python package
+│       └── test_api.py       # FastAPI endpoint tests
 │
 ├── frontend/                 # Gmail Add-on Frontend (Google Apps Script)
 │   ├── gmail-addon/          # Apps Script project files
 │   │   ├── Code.gs           # Main Gmail add-on implementation
 │   │   └── appsscript.json   # Apps Script configuration
-│   └── tests/                # Frontend test suite
-│       ├── TestSuite.gs      # Comprehensive test cases (85+ tests)
-│       └── COMPREHENSIVE_TESTING_GUIDE.md # Complete testing documentation
+│   └── tests/                # Frontend testing
+│       └── ProductionAPITest.gs # Essential API communication tests
 │
 ├── tests/                    # Backend unit and integration tests
 │   ├── __init__.py           # Makes 'tests' a Python package
@@ -42,6 +63,7 @@ SmartEventAdder/
 │
 ├── main.py                   # The "Orchestrator" - Complete workflow from email to calendar
 ├── run_tests.py              # Test runner script
+├── test_api.py               # Python API tester for command-line testing
 ├── pytest.ini               # Pytest configuration
 ├── Dockerfile                # Multi-stage Docker build for Cloud Run deployment
 ├── deploy.sh                 # Cloud Run deployment script
@@ -69,15 +91,6 @@ SmartEventAdder/
 - **User Confirmation**: Review extracted details before creating calendar events
 - **Unified OAuth 2.0 Authentication**: Dedicated authentication module for all Google APIs with single sign-on
 
-### Production Gmail Add-on
-- **🚀 Live Production API**: Deployed on Google Cloud Run at `https://smarteventadder-api-6qqmniwadq-an.a.run.app`
-- **📧 Gmail Add-on Integration**: Complete Gmail add-on with Apps Script frontend
-- **⚡ FastAPI Backend**: Production-ready REST API with comprehensive endpoints
-- **🔒 CORS Security**: Configured for Gmail and Apps Script integration
-- **📊 API Documentation**: Interactive Swagger UI at `/docs` endpoint
-- **💰 Cost-Optimized**: 0.17 vCPU, 512Mi memory, estimated $1-8/month
-- **🎛️ Enhanced UI**: Editable form cards with user review and calendar link integration
-- **🧪 Comprehensive Testing**: 85+ frontend test cases with complete testing guide
 
 ## Setup
 
@@ -184,29 +197,17 @@ The Gmail add-on frontend is built with Google Apps Script and integrates seamle
 
 - **📍 Location**: `frontend/gmail-addon/Code.gs`
 - **🔧 Configuration**: `frontend/gmail-addon/appsscript.json`
-- **🧪 Test Suite**: `frontend/tests/TestSuite.gs` (85+ test cases)
-- **📖 Testing Guide**: `frontend/tests/COMPREHENSIVE_TESTING_GUIDE.md`
+- **🧪 Test Suite**: `frontend/tests/ProductionAPITest.gs` (comprehensive API tests)
+- **📖 Testing Guide**: Available in `frontend/tests/ProductionAPITest.gs` comments
 
 **Key Features:**
-- **Editable Forms**: Users can review and edit AI-extracted event details
+- **Editable Forms**: Users can review and edit AI-extracted event details before calendar creation
 - **Enhanced Success Cards**: Direct calendar links and event management
-- **Real-time API Integration**: Communicates with production backend
+- **Real-time API Integration**: Communicates with production backend using Google Apps Script OAuth
 - **Error Handling**: Comprehensive error messages and fallback options
+- **Identity Token Authentication**: Uses ScriptApp.getIdentityToken() for secure API communication
+- **Base64 Email Decoding**: Robust handling of Gmail API message payloads with multiple encoding methods
 
-### Deployment Information
-
-**Infrastructure:**
-- **Platform**: Google Cloud Run (asia-northeast1)
-- **Container**: Multi-stage Docker build
-- **Resources**: 0.17 vCPU, 512Mi memory, max 3 instances
-- **Scaling**: Auto-scaling from 0 to 3 instances
-- **Estimated Cost**: $1-8/month (cost-optimized configuration)
-
-**Security:**
-- **Authentication**: OAuth 2.0 with Google APIs
-- **CORS**: Configured for Gmail and Apps Script origins
-- **Container**: Non-root user, minimal attack surface
-- **Network**: HTTPS only, managed by Google Cloud Run
 
 ## Usage
 
@@ -229,23 +230,6 @@ calendar_service = build('calendar', 'v3', credentials=creds)
 # Vertex AI also uses the same credentials automatically
 ```
 
-### Gmail Fetcher Module
-
-The `gmail_fetcher.py` module provides Gmail API integration to fetch emails using Message-ID headers:
-
-```python
-from modules.gmail_fetcher import fetch_email_by_message_id_header, fetch_email_by_gmail_id
-
-# Method 1: Fetch email using Message-ID header (Recommended)
-message_id_header = "684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail"
-email_content = fetch_email_by_message_id_header(message_id_header)
-
-# Method 2: Fetch email using Gmail API message ID
-gmail_message_id = "1995b3c89509dde1"
-email_content = fetch_email_by_gmail_id(gmail_message_id)
-
-# The email_content contains formatted email with subject, from, date, and body
-```
 
 ### Gmail Message ID Handling
 
@@ -253,24 +237,10 @@ email_content = fetch_email_by_gmail_id(gmail_message_id)
 
 | ID Type | Format | Example | Use Case |
 |---------|--------|---------|----------|
-| **Gmail URL ID** | 32 chars | `FMfcgzQcpnPVtskckfTVKvTdmrrjVXGf` | Web interface only |
-| **Gmail API Message ID** | 16 chars | `1995785e0194fbb3` | API calls |
-| **Email Message-ID Header** | Email format | `2b630e07-5cd7-4791-9ff1-a4d0a58a56e3@seg.co.jp` | Email headers |
+| **Gmail URL ID** | 32 chars | `FMfcgzQcpnPVtgeckfTVKvTdmrrjVCGf` | Web interface only |
+| **Gmail API Message ID** | 16 chars | `1935785e0196fbb3` | API calls |
+| **Email Message-ID Header** | Email format | `2b660e07-5cd7-4191-9ff1-a4d0a58a56e3@seg.co.jp` | Email headers |
 
-**To find a message by Message-ID header:**
-
-```python
-from modules.gmail_fetcher import search_message_by_message_id_header
-
-# Search for message using Message-ID header (simplified)
-message_id_header = '684f4d406f3ab_3af8b03fe4820d99a838379b6@tb-yyk-ai803.k-prd.in.mail'
-message = search_message_by_message_id_header(message_id_header)
-
-if message:
-    # Process the Gmail API message object
-    print(f"Found message: {message.get('id')}")
-    # Extract content using extract_email_content(message)
-```
 
 **Key Limitations:**
 - Gmail URL IDs cannot be used directly with Gmail API
@@ -357,18 +327,10 @@ We provide sample email files for testing:
 6. **📅 Calendar Creation** - Create Google Calendar event
 7. **📊 Results** - Show success/failure with detailed feedback
 
-#### **Features:**
-- **Multiple input methods** (interactive, file, command line, Message-ID header)
-- **Automatic Message-ID detection** - Recognizes and fetches emails from Gmail automatically
-- **Input sanitization** and validation
-- **User confirmation** before creating events
-- **Comprehensive error handling** with helpful suggestions
-- **Logging** to `smarteventadder.log` for debugging
-- **Beautiful console output** with progress indicators
 
 ## Testing
 
-This project includes a comprehensive test suite with **77 total test cases** covering all functionality:
+This project includes a comprehensive test suite with **85+ total test cases** covering all functionality:
 
 ### Test Suite Overview
 
@@ -382,6 +344,8 @@ This project includes a comprehensive test suite with **77 total test cases** co
 | `test_gmail_fetcher_integration.py` | 6 tests | Gmail API integration tests with real data |
 | `test_gmail_message_api.py` | 2 tests | Gmail Message-ID header analysis and API exploration |
 | `test_calendar_integration.py` | 5 tests | End-to-end calendar integration tests |
+| **Backend API Tests** | **Additional** | **FastAPI endpoint testing** |
+| `gmail-addon-api/tests/test_api.py` | 10+ tests | FastAPI backend endpoint validation |
 
 ### Main Orchestrator Tests (36 test cases)
 
@@ -537,17 +501,23 @@ python -m pytest tests/test_calendar_integration.py -v
 ### Running All Tests
 
 ```bash
-# Run complete test suite (77 tests)
+# Run complete test suite (85+ tests)
 python -m pytest -v
 
 # Run with coverage report
-python -m pytest --cov=modules --cov=main -v
+python -m pytest --cov=modules --cov=main --cov=gmail-addon-api/api --cov-report=term-missing -v
 
 # Run only unit tests (skip integration tests)
 python -m pytest -k "not integration" -v
 
-# Use the test runner script
+# Use the comprehensive test runner script
 python run_tests.py
+
+# Quick development tests
+python run_tests.py quick
+
+# Backend API tests specifically
+python run_tests.py api
 ```
 
 ### Test Categories
@@ -573,6 +543,25 @@ python run_tests.py
 - Internet connection for API calls
 
 **Note:** All integration tests are designed to be safe and use minimal API quotas.
+
+### Backend API Tests
+
+```bash
+# Run FastAPI backend tests
+python run_tests.py api
+
+# Or run directly with pytest
+python -m pytest gmail-addon-api/tests/ -v
+```
+
+**Backend API Test Coverage:**
+- FastAPI endpoint validation (parse-email, create-event, complete-workflow)
+- Request/response model validation with Pydantic
+- Authentication and error handling testing
+- CORS configuration testing
+- Health check and configuration endpoints
+
+**Note:** Backend API tests use mocked dependencies to avoid external API calls during testing.
 
 ## Production Deployment
 
@@ -630,12 +619,6 @@ Health check: https://your-service-url.run.app/api/health
 API docs: https://your-service-url.run.app/docs
 ```
 
-#### Cost Estimation
-
-With the optimized configuration:
-- **Monthly Cost**: $1-8 (for typical usage)
-- **Pricing Factors**: CPU time, memory usage, requests, egress
-- **Cost Savings**: 70-80% reduction vs standard 1 vCPU configuration
 
 #### Monitoring and Maintenance
 
@@ -664,15 +647,191 @@ The multi-stage Docker build (`Dockerfile`) optimizes for production:
 - Cloud Run port handling (8080)
 ```
 
-### Frontend Deployment
+### Frontend Deployment & Testing
 
-The Gmail add-on frontend is deployed via Google Apps Script:
+The Gmail add-on frontend is deployed to Google Apps Script and connects to the production API.
 
-1. **Apps Script Console**: `https://script.google.com`
-2. **Create New Project**: Copy code from `frontend/gmail-addon/Code.gs`
-3. **Configure Manifest**: Use `frontend/gmail-addon/appsscript.json`
-4. **Enable APIs**: Gmail API, Calendar API in Apps Script
-5. **Deploy as Add-on**: Follow Google Workspace Add-on deployment guide
+#### Quick Deployment & Testing
+
+**Step 1: Deploy to Apps Script**
+
+1. **Go to [Apps Script Console](https://script.google.com)**
+2. **Create New Project** called "SmartEventAdder"
+3. **Copy Files:**
+   - Copy `frontend/gmail-addon/Code.gs` → replace `Code.gs`
+   - Copy `frontend/gmail-addon/appsscript.json` → replace `appsscript.json`
+   - Copy `frontend/tests/ProductionAPITest.gs` → create new file
+
+**Step 2: Test API Communication**
+
+Run these functions in Apps Script:
+
+```javascript
+// Test basic connectivity
+testProductionAPIConnectivity()
+
+// Test email parsing
+testParseEmailAPI()
+
+// Test event creation (safe - no real calendar events)
+testCreateEventAPI()
+
+// Test complete workflow
+testCompleteWorkflowAPI()
+
+// Test authentication
+testAPIAuthentication()
+
+// Run all tests at once
+runAllProductionAPITests()
+```
+
+**Step 3: Test Gmail Add-on**
+
+1. **Deploy as Test Add-on:**
+   - Click "Deploy" → "Test deployments"
+   - Select "Install add-on"
+   - Click "Done"
+
+2. **Test in Gmail:**
+   - Open Gmail (same browser)
+   - Select any email
+   - Look for "Smart Event Adder" in right sidebar
+   - Click "Parse Event" button
+   - Test the editable form fields
+   - Click "📅 Add to Calendar"
+
+#### Sample Test Emails
+
+**Meeting Email:**
+```
+Subject: Weekly Team Meeting
+From: manager@company.com
+
+Hi team,
+
+Please join our weekly team meeting on Tuesday, January 16th at 2:30 PM in Conference Room A.
+
+Agenda:
+- Project updates
+- Next week planning
+
+Best regards,
+Management
+```
+
+**Appointment Email:**
+```
+Subject: Dentist Appointment Confirmation
+From: dental@clinic.com
+
+Your appointment is confirmed for Thursday, January 18th at 10:00 AM at Downtown Dental, 123 Main St.
+
+Please arrive 15 minutes early.
+```
+
+#### Frontend Testing Troubleshooting
+
+**Common Issues:**
+
+1. **"Failed to parse event"**
+   - Check API connectivity with `testProductionAPIConnectivity()`
+   - Verify production API is running
+
+2. **"Authentication failed"**
+   - This is expected - the API works without auth for parsing
+   - Calendar creation may require additional setup
+
+3. **"CORS error"**
+   - Only occurs outside Apps Script - should not happen in deployment
+
+4. **Gmail add-on not showing**
+   - Ensure deployment succeeded
+   - Check Gmail permissions in Apps Script
+   - Try refreshing Gmail
+
+#### Expected Frontend Test Results
+
+**API Tests:**
+- ✅ Connectivity: Should return "healthy" status
+- ✅ Parse Email: Should extract event details from sample emails
+- ⚠️ Create Event: May fail without full Google Calendar auth (this is normal)
+- ✅ Complete Workflow: Should parse email and return event data
+
+**Gmail Add-on:**
+- ✅ Sidebar appears when viewing emails
+- ✅ "Parse Event" button works
+- ✅ Editable form fields appear with extracted data
+- ✅ User can edit event details before creating
+- ✅ Success card shows after event creation
+
+#### Frontend Files for Deployment
+
+**Essential Files Only:**
+```
+frontend/
+├── gmail-addon/
+│   ├── Code.gs                    ← Main add-on code
+│   └── appsscript.json           ← Configuration
+└── tests/
+    └── ProductionAPITest.gs       ← API testing
+```
+
+## API Testing Options
+
+### Option 1: Apps Script Testing (Recommended)
+
+**Best for**: Complete Gmail add-on integration testing with proper OAuth context
+
+1. **Copy** `frontend/tests/ProductionAPITest.gs` to Apps Script console
+2. **Run** `runAllProductionAPITests()` function
+3. **Review** detailed logs with problem identification
+
+**Features:**
+- ✅ One-click comprehensive testing
+- ✅ Real Gmail add-on environment
+- ✅ Proper Google OAuth context
+- ✅ Detailed logging and recommendations
+
+### Option 2: Python Command-Line Testing
+
+**Best for**: Quick API health checks and development workflow
+
+```bash
+# Install dependencies (if needed)
+pip install requests
+
+# Run Python API tests
+python test_api.py
+
+# Or use the comprehensive test runner
+python run_tests.py api
+```
+
+**Features:**
+- ✅ Quick command-line testing
+- ✅ No Apps Script setup required
+- ✅ Good for CI/CD pipelines
+- ⚠️ Limited by external API access (no OAuth context)
+
+**Example Output:**
+```
+🚀 SmartEventAdder API Test Suite
+==================================================
+connectivity: ✅ PASS
+health: ✅ PASS
+parse_email: ❌ FAIL (expected without auth)
+create_event: ✅ PASS
+
+Overall: 3/4 tests passed
+```
+
+### Testing Summary
+
+| Test Method | Environment | OAuth Context | Use Case |
+|-------------|-------------|---------------|----------|
+| **Apps Script** | Gmail add-on | ✅ Full OAuth | Production testing |
+| **Python CLI** | Command line | ❌ External only | Development/CI |
 
 ## Security Notes
 
