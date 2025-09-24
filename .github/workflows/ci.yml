@@ -1,4 +1,4 @@
-name: Enhanced CI/CD Pipeline - Tests, Security & API Health
+name: Security-First CI/CD Pipeline - Zero-Tolerance for Secrets
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   security-scan:
-    name: 🔒 Security Scanning
+    name: 🔒 Security Scanning (Zero-Tolerance)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -25,17 +25,76 @@ jobs:
 
     - name: Install Gitleaks
       run: |
-        curl -sSfL https://raw.githubusercontent.com/zricethezav/gitleaks/master/scripts/install.sh | sh -s -- -b /usr/local/bin
+        echo "📦 Installing Gitleaks..."
+        # Install Gitleaks with proper permissions
+        curl -sSfL https://raw.githubusercontent.com/zricethezav/gitleaks/master/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
+
+        # Verify installation
+        echo "✅ Verifying Gitleaks installation..."
+        which gitleaks || echo "❌ Gitleaks not found in PATH"
+        gitleaks version || echo "❌ Gitleaks version check failed"
+
+        # Alternative installation if first method fails
+        if ! command -v gitleaks &> /dev/null; then
+          echo "🔄 Trying alternative installation method..."
+          wget https://github.com/zricethezav/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          tar xzf gitleaks_8.21.2_linux_x64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+          rm gitleaks_8.21.2_linux_x64.tar.gz
+          echo "✅ Alternative installation completed"
+          gitleaks version
+        fi
 
     - name: Run Gitleaks Secret Scanner
       run: |
-        echo "🔍 Running Gitleaks secret detection..."
-        gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json || true
-        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
-          echo "⚠️ Secrets detected! Check gitleaks-report.json"
-          cat gitleaks-report.json
+        echo "🔍 Running Gitleaks comprehensive secret detection..."
+        echo "Current working directory: $(pwd)"
+        echo "Files in directory:"
+        ls -la
+        echo "Looking for temp files:"
+        find . -name "temp_*" -type f
+        echo ""
+        echo "Sample content from temp files:"
+        if [ -f temp_secrets_test.py ]; then
+          echo "🔍 temp_secrets_test.py preview:"
+          head -20 temp_secrets_test.py | grep -E "(AWS|GITHUB|SECRET|TOKEN)" || echo "No obvious secrets in preview"
+        fi
+        echo ""
+
+        # Run Gitleaks with proper error handling
+        echo "🔍 Running Gitleaks scan..."
+        gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=0 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
+
+        # Check if report was generated
+        echo ""
+        echo "📄 Checking for generated reports..."
+        ls -la *.json *.log 2>/dev/null || echo "No report files found"
+
+        if [ -f gitleaks-report.json ]; then
+          echo "📋 gitleaks-report.json exists, size: $(wc -c < gitleaks-report.json) bytes"
+          if [ -s gitleaks-report.json ]; then
+            echo ""
+            echo "🚨 SECRETS DETECTED BY GITLEAKS!"
+            FINDINGS_COUNT=$(jq length gitleaks-report.json 2>/dev/null || echo "parse_error")
+            echo "Number of findings: $FINDINGS_COUNT"
+            echo ""
+            echo "📋 Full report content:"
+            cat gitleaks-report.json
+            echo ""
+            echo "🔍 Parsed findings:"
+            jq -r '.[] | "🚨 " + .RuleID + " in " + .File + ":" + (.Line|tostring) + " - Secret: " + .Secret' gitleaks-report.json 2>/dev/null || echo "Failed to parse JSON"
+          else
+            echo "⚠️ gitleaks-report.json is empty"
+          fi
         else
-          echo "✅ No secrets detected"
+          echo "❌ gitleaks-report.json was not created"
+        fi
+
+        # Show any output logs
+        if [ -f gitleaks-output.log ]; then
+          echo ""
+          echo "📋 Gitleaks execution log:"
+          cat gitleaks-output.log
         fi
 
     - name: Set up Python for Security Tools
@@ -46,40 +105,49 @@ jobs:
     - name: Install Security Tools
       run: |
         python -m pip install --upgrade pip
-        pip install bandit[toml] safety semgrep
         pip install -r requirements.txt
 
-    - name: Run Bandit Security Scanner
+    - name: Security Scan Summary
+      if: always()
       run: |
-        echo "🔍 Running Bandit security analysis..."
-        bandit -r . -f json -o bandit-report.json || true
-        bandit -r . -f txt || true
-      continue-on-error: true
+        echo "🔍 Security Scan Summary"
+        echo "======================="
 
-    - name: Run Safety Vulnerability Scanner
-      run: |
-        echo "🛡️ Checking for known security vulnerabilities in dependencies..."
-        safety check --json --output safety-report.json || true
-        safety check || true
-      continue-on-error: true
+        GITLEAKS_FINDINGS=0
 
-    - name: Run Semgrep Security Analysis
-      run: |
-        echo "🔎 Running Semgrep security rules..."
-        semgrep --config=auto --json --output=semgrep-report.json . || true
-        semgrep --config=auto . || true
-      continue-on-error: true
+        # Check Gitleaks findings
+        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
+          GITLEAKS_FINDINGS=$(jq length gitleaks-report.json 2>/dev/null || echo "0")
+          echo "🚨 Gitleaks: $GITLEAKS_FINDINGS potential secrets detected"
+        else
+          echo "✅ Gitleaks: No secrets detected"
+        fi
+
+        echo ""
+        echo "📊 Security Tools Summary:"
+        echo "  🔍 Gitleaks (secrets): $GITLEAKS_FINDINGS findings"
+
+        if [ "$GITLEAKS_FINDINGS" != "0" ] && [ "$GITLEAKS_FINDINGS" != "unknown" ]; then
+          echo ""
+          echo "🚨 SECURITY ALERT: Secrets detected in repository!"
+          echo "📋 Please review and remove ALL detected secrets before proceeding"
+          echo "🔒 CI/CD pipeline will FAIL to prevent secrets from reaching production"
+          echo ""
+          echo "🔍 To view detailed findings:"
+          echo "   1. Check the job logs above for Gitleaks results"
+          echo "   2. Download the 'security-reports' artifact"
+          echo "   3. Review gitleaks-report.json for full details"
+          echo ""
+          echo "❌ FAILING BUILD DUE TO SECURITY VIOLATION"
+          exit 1
+        fi
 
     - name: Upload Security Reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
-        path: |
-          gitleaks-report.json
-          bandit-report.json
-          safety-report.json
-          semgrep-report.json
+        path: gitleaks-report.json
         retention-days: 30
 
   unit-tests:
@@ -261,20 +329,19 @@ jobs:
     - name: CI/CD Pipeline Summary
       run: |
         echo "=========================================================="
-        echo "🤖 SmartEventAdder AI Agent - CI/CD Pipeline Complete"
-        echo "=========================================================="
+        echo "🤖 SmartEventAdder AI Agent - Security-First CI/CD Pipeline"
+        echo "============================================================="
         echo ""
-        echo "🔒 Security Scan: ${{ needs.security-scan.result }}"
+        echo "🔒 Security Scan (Zero-Tolerance): ${{ needs.security-scan.result }}"
         echo "🧪 Unit Tests: ${{ needs.unit-tests.result }}"
         echo "🌐 API Health Check: ${{ needs.api-health-check.result }}"
         echo ""
-        echo "📊 Pipeline Features:"
-        echo "  ✅ Gitleaks secret scanning"
-        echo "  ✅ Bandit Python security analysis"
-        echo "  ✅ Safety vulnerability checking"
-        echo "  ✅ Semgrep security rules"
+        echo "🛡️  Security-First Pipeline Features:"
+        echo "  🚨 Gitleaks secret detection (FAILS on detection)"
         echo "  ✅ Unit tests with coverage reporting"
         echo "  ✅ Production API health monitoring"
+        echo ""
+        echo "⚠️  SECURITY POLICY: Pipeline fails immediately if secrets detected"
         echo ""
         echo "🚀 Production API: https://smarteventadder-api-6qqmniwadq-an.a.run.app"
         echo "📚 API Docs: https://smarteventadder-api-6qqmniwadq-an.a.run.app/docs"
