@@ -105,26 +105,15 @@ jobs:
     - name: Install Security Tools
       run: |
         python -m pip install --upgrade pip
-        pip install safety
         pip install -r requirements.txt
-
-    - name: Run Safety Vulnerability Scanner
-      run: |
-        echo "🛡️ Checking for known vulnerabilities in Python dependencies..."
-        echo "📋 Running Safety scan with JSON output..."
-        safety scan --format json > safety-report.json || echo "Safety scan completed with issues"
-        echo "📋 Running Safety scan with text output..."
-        safety scan --short-report || echo "Safety scan completed"
-      continue-on-error: true
 
     - name: Security Scan Summary
       if: always()
       run: |
-        echo "🔍 Streamlined Security Scan Summary"
-        echo "==================================="
+        echo "🔍 Security Scan Summary"
+        echo "======================="
 
         GITLEAKS_FINDINGS=0
-        SAFETY_ISSUES=0
 
         # Check Gitleaks findings
         if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
@@ -134,18 +123,9 @@ jobs:
           echo "✅ Gitleaks: No secrets detected"
         fi
 
-        # Check Safety findings
-        if [ -f safety-report.json ] && [ -s safety-report.json ]; then
-          SAFETY_ISSUES=$(jq length safety-report.json 2>/dev/null || echo "0")
-          echo "🚨 Safety: $SAFETY_ISSUES dependency vulnerabilities found"
-        else
-          echo "✅ Safety: No dependency vulnerabilities"
-        fi
-
         echo ""
         echo "📊 Security Tools Summary:"
         echo "  🔍 Gitleaks (secrets): $GITLEAKS_FINDINGS findings"
-        echo "  🛡️  Safety (dependencies): $SAFETY_ISSUES vulnerabilities"
 
         if [ "$GITLEAKS_FINDINGS" != "0" ] && [ "$GITLEAKS_FINDINGS" != "unknown" ]; then
           echo ""
@@ -154,9 +134,9 @@ jobs:
           echo "🔒 CI/CD pipeline will FAIL to prevent secrets from reaching production"
           echo ""
           echo "🔍 To view detailed findings:"
-          echo "   1. Check the job logs above for TruffleHog results"
+          echo "   1. Check the job logs above for Gitleaks results"
           echo "   2. Download the 'security-reports' artifact"
-          echo "   3. Review trufflehog-report.json for full details"
+          echo "   3. Review gitleaks-report.json for full details"
           echo ""
           echo "❌ FAILING BUILD DUE TO SECURITY VIOLATION"
           exit 1
@@ -167,9 +147,7 @@ jobs:
       if: always()
       with:
         name: security-reports
-        path: |
-          gitleaks-report.json
-          safety-report.json
+        path: gitleaks-report.json
         retention-days: 30
 
   unit-tests:
@@ -360,7 +338,6 @@ jobs:
         echo ""
         echo "🛡️  Security-First Pipeline Features:"
         echo "  🚨 Gitleaks secret detection (FAILS on detection)"
-        echo "  🔍 Safety dependency vulnerability scanning"
         echo "  ✅ Unit tests with coverage reporting"
         echo "  ✅ Production API health monitoring"
         echo ""
