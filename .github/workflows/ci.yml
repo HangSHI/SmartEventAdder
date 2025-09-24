@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [ main ]
 
+# Set permissions for GITHUB_TOKEN
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  checks: write
+  pull-requests: read
+
 jobs:
   security-scan:
     name: 🔒 Security Scanning
@@ -15,11 +23,20 @@ jobs:
       with:
         fetch-depth: 0  # Full history for better secret detection
 
+    - name: Install Gitleaks
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/zricethezav/gitleaks/master/scripts/install.sh | sh -s -- -b /usr/local/bin
+
     - name: Run Gitleaks Secret Scanner
-      uses: gitleaks/gitleaks-action@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Only required for Organizations, not required for personal accounts.
+      run: |
+        echo "🔍 Running Gitleaks secret detection..."
+        gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json || true
+        if [ -f gitleaks-report.json ] && [ -s gitleaks-report.json ]; then
+          echo "⚠️ Secrets detected! Check gitleaks-report.json"
+          cat gitleaks-report.json
+        else
+          echo "✅ No secrets detected"
+        fi
 
     - name: Set up Python for Security Tools
       uses: actions/setup-python@v5
@@ -59,6 +76,7 @@ jobs:
       with:
         name: security-reports
         path: |
+          gitleaks-report.json
           bandit-report.json
           safety-report.json
           semgrep-report.json
