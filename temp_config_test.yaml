@@ -1,0 +1,66 @@
+# TEMPORARY CONFIG FILE FOR SECURITY SCANNING TEST
+# This file contains intentional fake secrets to test security scanning
+
+# Database Configuration
+database:
+  host: "localhost"
+  port: 5432
+  username: "admin"
+  password: "database_password_123"
+  connection_string: "postgres://user:pass123@localhost:5432/db"
+
+# API Keys and Tokens
+api_keys:
+  stripe_secret: "sk_test_1234567890abcdefghijklmnopqrstuvwxyz"
+  stripe_public: "pk_test_1234567890abcdefghijklmnopqrstuvwxyz"
+  sendgrid: "SG.fake_sendgrid_key_1234567890abcdefghijk.fake_rest_of_key"
+  twilio_sid: "AC1234567890abcdefghijklmnopqrstuvwx"
+  twilio_token: "fake_twilio_auth_token_1234567890abcdef"
+
+# Cloud Provider Credentials
+aws:
+  access_key_id: "AKIAIOSFODNN7EXAMPLE"
+  secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  region: "us-west-2"
+
+google_cloud:
+  project_id: "my-gcp-project"
+  private_key_id: "1234567890abcdef"
+  private_key: |
+    -----BEGIN PRIVATE KEY-----
+    MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7VvBz...
+    (fake private key content for testing)
+    -----END PRIVATE KEY-----
+  client_email: "service-account@my-gcp-project.iam.gserviceaccount.com"
+  client_id: "123456789012345678901"
+
+# Social Media API Keys
+social_media:
+  twitter_consumer_key: "fake_twitter_consumer_key_1234567890"
+  twitter_consumer_secret: "fake_twitter_consumer_secret_abcdefghijklmnopqrstuvwxyz"
+  facebook_app_id: "1234567890123456"
+  facebook_app_secret: "fake_facebook_app_secret_abcdefghijklmnopqr"
+
+# Webhooks and Callbacks
+webhooks:
+  slack: "https://hooks.slack.com/services/T1234567/B1234567/fake_slack_webhook_token"
+  discord: "https://discord.com/api/webhooks/123456789012345678/fake_discord_webhook_token"
+
+# Encryption Keys
+encryption:
+  jwt_secret: "my_jwt_secret_key_for_testing_123456789"
+  aes_key: "16_char_aes_key!"
+  salt: "random_salt_value_for_hashing"
+
+# Email Configuration
+email:
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  username: "noreply@company.com"
+  password: "email_app_password_123"
+
+# Certificate Information
+certificates:
+  ssl_cert_path: "/path/to/ssl/certificate.pem"
+  ssl_key_path: "/path/to/ssl/private.key"
+  ssl_passphrase: "ssl_private_key_passphrase_123"
