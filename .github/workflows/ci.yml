@@ -63,7 +63,7 @@ jobs:
 
         # Run Gitleaks with proper error handling
         echo "🔍 Running Gitleaks scan..."
-        gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=false 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
+        gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=0 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
 
         # Check if report was generated
         echo ""
