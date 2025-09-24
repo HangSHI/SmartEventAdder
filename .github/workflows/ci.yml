@@ -1,4 +1,4 @@
-name: Enhanced CI/CD Pipeline - Tests, Security & API Health
+name: Security-First CI/CD Pipeline - Zero-Tolerance for Secrets
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   security-scan:
-    name: 🔒 Security Scanning
+    name: 🔒 Security Scanning (Zero-Tolerance)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -30,12 +30,27 @@ jobs:
     - name: Run TruffleHog Secret Scanner
       run: |
         echo "🔍 Running TruffleHog comprehensive secret detection..."
-        trufflehog filesystem . --json --only-verified=false > trufflehog-report.json || true
+        echo "Scanning all files in repository..."
+
+        # Run TruffleHog with verbose output and comprehensive scanning
+        trufflehog filesystem . \
+          --json \
+          --only-verified=false \
+          --no-update \
+          --fail \
+          > trufflehog-report.json 2>&1 || echo "TruffleHog completed scan"
+
+        # Also run with text output for immediate visibility
+        echo "🔍 TruffleHog text output:"
+        trufflehog filesystem . --only-verified=false --no-update || true
+
         if [ -f trufflehog-report.json ] && [ -s trufflehog-report.json ]; then
-          echo "🚨 Secrets detected by TruffleHog!"
+          echo ""
+          echo "🚨 SECRETS DETECTED BY TRUFFLEHOG!"
           echo "Number of findings: $(wc -l < trufflehog-report.json)"
+          echo ""
           echo "Sample findings:"
-          head -5 trufflehog-report.json | jq -r '.DetectorName + " in " + .SourceMetadata.Data.Filesystem.file + ":" + (.SourceMetadata.Data.Filesystem.line|tostring)' 2>/dev/null || head -5 trufflehog-report.json
+          head -10 trufflehog-report.json || true
         else
           echo "✅ No secrets detected by TruffleHog"
         fi
@@ -90,10 +105,17 @@ jobs:
 
         if [ $TRUFFLEHOG_FINDINGS -gt 0 ]; then
           echo ""
-          echo "⚠️  SECURITY ALERT: Potential secrets detected!"
-          echo "📋 Review security reports and remove any real credentials"
-          echo "🔧 For testing: Not failing build, but production should fail"
-          # Uncomment to fail on secret detection: exit 1
+          echo "🚨 SECURITY ALERT: Secrets detected in repository!"
+          echo "📋 Please review and remove ALL detected secrets before proceeding"
+          echo "🔒 CI/CD pipeline will FAIL to prevent secrets from reaching production"
+          echo ""
+          echo "🔍 To view detailed findings:"
+          echo "   1. Check the job logs above for TruffleHog results"
+          echo "   2. Download the 'security-reports' artifact"
+          echo "   3. Review trufflehog-report.json for full details"
+          echo ""
+          echo "❌ FAILING BUILD DUE TO SECURITY VIOLATION"
+          exit 1
         fi
 
     - name: Upload Security Reports
@@ -285,18 +307,20 @@ jobs:
     - name: CI/CD Pipeline Summary
       run: |
         echo "=========================================================="
-        echo "🤖 SmartEventAdder AI Agent - CI/CD Pipeline Complete"
-        echo "=========================================================="
+        echo "🤖 SmartEventAdder AI Agent - Security-First CI/CD Pipeline"
+        echo "============================================================="
         echo ""
-        echo "🔒 Security Scan: ${{ needs.security-scan.result }}"
+        echo "🔒 Security Scan (Zero-Tolerance): ${{ needs.security-scan.result }}"
         echo "🧪 Unit Tests: ${{ needs.unit-tests.result }}"
         echo "🌐 API Health Check: ${{ needs.api-health-check.result }}"
         echo ""
-        echo "📊 Streamlined Pipeline Features:"
-        echo "  ✅ TruffleHog comprehensive secret detection"
-        echo "  ✅ Safety dependency vulnerability scanning"
+        echo "🛡️  Security-First Pipeline Features:"
+        echo "  🚨 TruffleHog secret detection (FAILS on detection)"
+        echo "  🔍 Safety dependency vulnerability scanning"
         echo "  ✅ Unit tests with coverage reporting"
         echo "  ✅ Production API health monitoring"
+        echo ""
+        echo "⚠️  SECURITY POLICY: Pipeline fails immediately if secrets detected"
         echo ""
         echo "🚀 Production API: https://smarteventadder-api-6qqmniwadq-an.a.run.app"
         echo "📚 API Docs: https://smarteventadder-api-6qqmniwadq-an.a.run.app/docs"

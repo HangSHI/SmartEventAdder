@@ -10,12 +10,12 @@ import requests
 
 # TEST SECRETS - These should be detected by security scanners
 
-# 1. AWS API Keys (should be detected by Gitleaks)
-AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
-AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+# 1. AWS API Keys (more realistic patterns)
+AWS_ACCESS_KEY_ID = "AKIA2E2CVDF4HNJ6XKWQ"
+AWS_SECRET_ACCESS_KEY = "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"
 
-# 2. GitHub Token (should be detected by Gitleaks)
-GITHUB_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyz123"
+# 2. GitHub Token (more realistic pattern)
+GITHUB_TOKEN = "ghp_2K4jF9xN8mB5cQ7rT3pL6vX1zE4wY0sA9iH"
 
 # 3. Google API Key (should be detected by Gitleaks)
 GOOGLE_API_KEY = "AIzaSyDdI0hCZtE6vySjMIjEyAgRabcdefghijk"
