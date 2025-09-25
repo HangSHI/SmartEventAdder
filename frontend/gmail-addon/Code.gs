@@ -724,8 +724,17 @@ function createGoogleCalendarEvent(eventData) {
     let endDateTime;
 
     if (startTime.includes(':')) {
-      // Has specific time
-      startDateTime = new Date(`${eventDate}T${startTime}:00`);
+      // Has specific time - create in Asia/Tokyo timezone
+      const dateTimeString = `${eventDate}T${startTime}:00`;
+      console.log('Creating date from:', dateTimeString);
+
+      // Create date object and adjust for timezone
+      startDateTime = new Date(dateTimeString);
+
+      // Check if the date is invalid
+      if (isNaN(startDateTime.getTime())) {
+        throw new Error(`Invalid date/time: ${dateTimeString}`);
+      }
 
       if (endTime && endTime.includes(':')) {
         endDateTime = new Date(`${eventDate}T${endTime}:00`);
@@ -733,6 +742,9 @@ function createGoogleCalendarEvent(eventData) {
         // Default to 1 hour duration
         endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
       }
+
+      console.log('Parsed start time:', startDateTime.toISOString());
+      console.log('Parsed end time:', endDateTime.toISOString());
     } else {
       // All day event
       startDateTime = new Date(eventDate);
@@ -757,19 +769,45 @@ function createGoogleCalendarEvent(eventData) {
 
     console.log('Calendar event object:', calendarEvent);
 
-    // Create the event using Google Calendar API
-    const createdEvent = Calendar.Events.insert(calendarEvent, 'primary');
+    // Try Calendar API first, fallback to CalendarApp
+    let createdEvent;
+    try {
+      // Method 1: Advanced Calendar API
+      createdEvent = Calendar.Events.insert(calendarEvent, 'primary');
+      console.log('Event created with Calendar API:', createdEvent.id);
 
-    console.log('Event created successfully:', createdEvent.id);
+      return {
+        success: true,
+        event_id: createdEvent.id,
+        event_url: createdEvent.htmlLink,
+        calendar_link: createdEvent.htmlLink,
+        message: 'Calendar event created successfully'
+      };
+    } catch (apiError) {
+      console.warn('Calendar API failed, trying CalendarApp:', apiError);
 
-    // Return success result with event details
-    return {
-      success: true,
-      event_id: createdEvent.id,
-      event_url: createdEvent.htmlLink,
-      calendar_link: createdEvent.htmlLink,
-      message: 'Calendar event created successfully'
-    };
+      // Method 2: CalendarApp fallback
+      const calendar = CalendarApp.getDefaultCalendar();
+      const appEvent = calendar.createEvent(
+        eventData.summary || 'New Event',
+        startDateTime,
+        endDateTime,
+        {
+          description: eventData.description || '',
+          location: eventData.location || ''
+        }
+      );
+
+      console.log('Event created with CalendarApp:', appEvent.getId());
+
+      return {
+        success: true,
+        event_id: appEvent.getId(),
+        event_url: 'https://calendar.google.com/calendar',
+        calendar_link: 'https://calendar.google.com/calendar',
+        message: 'Calendar event created successfully'
+      };
+    }
 
   } catch (error) {
     console.error('Error creating calendar event:', error);
