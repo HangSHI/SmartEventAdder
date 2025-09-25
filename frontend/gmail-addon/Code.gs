@@ -591,8 +591,8 @@ function createEventDetailsCard(eventData, messageId) {
 }
 
 /**
- * Creates a calendar event from the editable form data
- * Implements Gemini's recommendation for backend API call with user-edited data
+ * Creates a calendar event directly using Google Calendar API
+ * No longer uses backend - creates events directly in the add-on
  *
  * @param {Object} e - Action event object with form inputs
  * @return {ActionResponse} Response to update the card
@@ -624,11 +624,8 @@ function createCalendarEventFromForm(e) {
       throw new Error('Event title and date are required. Please fill in these fields.');
     }
 
-    // Show processing card
-    const processingCard = createProcessingCard('Creating calendar event...');
-
-    // Call backend API to create calendar event (recommended approach)
-    const result = callCreateEventAPI(finalEventData);
+    // Create calendar event directly using Google Calendar API
+    const result = createGoogleCalendarEvent(finalEventData);
 
     if (!result || !result.success) {
       throw new Error(result ? result.error : 'Failed to create calendar event');
@@ -706,24 +703,81 @@ function createCalendarEvent(e) {
 }
 
 /**
- * Calls the backend API to create a calendar event
- * Uses the generic callBackendAPI function with proper authentication
+ * Creates a calendar event directly using Google Calendar API
+ * Replaces backend API call with direct calendar integration
  *
  * @param {Object} eventData - Event data to create
- * @return {Object} API response
+ * @return {Object} Result with success status and event details
  */
-function callCreateEventAPI(eventData) {
+function createGoogleCalendarEvent(eventData) {
   try {
-    const payload = {
-      event_data: eventData
+    console.log('Creating calendar event directly with Google Calendar API');
+    console.log('Event data:', eventData);
+
+    // Parse and validate date/time
+    const eventDate = eventData.date; // YYYY-MM-DD format
+    const startTime = eventData.start_time || '09:00'; // Default to 9 AM if no time
+    const endTime = eventData.end_time;
+
+    // Create start datetime
+    let startDateTime;
+    let endDateTime;
+
+    if (startTime.includes(':')) {
+      // Has specific time
+      startDateTime = new Date(`${eventDate}T${startTime}:00`);
+
+      if (endTime && endTime.includes(':')) {
+        endDateTime = new Date(`${eventDate}T${endTime}:00`);
+      } else {
+        // Default to 1 hour duration
+        endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+      }
+    } else {
+      // All day event
+      startDateTime = new Date(eventDate);
+      endDateTime = new Date(eventDate);
+      endDateTime.setDate(endDateTime.getDate() + 1);
+    }
+
+    // Create calendar event object
+    const calendarEvent = {
+      summary: eventData.summary || 'New Event',
+      description: eventData.description || '',
+      location: eventData.location || '',
+      start: {
+        dateTime: startDateTime.toISOString(),
+        timeZone: 'Asia/Tokyo'
+      },
+      end: {
+        dateTime: endDateTime.toISOString(),
+        timeZone: 'Asia/Tokyo'
+      }
     };
 
-    console.log('Calling create-event API with authentication');
-    return callBackendAPI('/create-event', payload);
+    console.log('Calendar event object:', calendarEvent);
+
+    // Create the event using Google Calendar API
+    const createdEvent = Calendar.Events.insert(calendarEvent, 'primary');
+
+    console.log('Event created successfully:', createdEvent.id);
+
+    // Return success result with event details
+    return {
+      success: true,
+      event_id: createdEvent.id,
+      event_url: createdEvent.htmlLink,
+      calendar_link: createdEvent.htmlLink,
+      message: 'Calendar event created successfully'
+    };
 
   } catch (error) {
-    console.error('Error calling create event API:', error);
-    throw error;
+    console.error('Error creating calendar event:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create calendar event',
+      message: 'Calendar event creation failed'
+    };
   }
 }
 
