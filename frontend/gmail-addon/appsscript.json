@@ -25,7 +25,7 @@
   "addOns": {
     "common": {
       "name": "Smart Event Adder",
-      "logoUrl": "https://developers.google.com/gmail/add-ons/images/gmail-add-on-icon.png",
+      "logoUrl": "https://hangshi.github.io/SmartEventAdder/image/smarteventadder_sidelogo.png",
       "useLocaleFromApp": true
     },
     "gmail": {

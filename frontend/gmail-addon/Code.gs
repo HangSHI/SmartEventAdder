@@ -68,7 +68,7 @@ function createMainCard(messageId, accessToken) {
     .setHeader(CardService.newCardHeader()
       .setTitle('Smart Event Adder')
       .setSubtitle('AI-powered event extraction')
-      .setImageUrl('https://developers.google.com/gmail/add-ons/images/gmail-add-on-icon.png'))
+      .setImageUrl('https://hangshi.github.io/SmartEventAdder/image/logo.png'))
     .addSection(createEmailInfoSection(messageId))
     .addSection(createActionSection(messageId))
     .build();
