@@ -21,7 +21,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Full history for better secret detection
+        fetch-depth: 1  # Only current commit - sufficient for current code scanning
 
     - name: Install Gitleaks
       run: |
@@ -61,7 +61,7 @@ jobs:
         fi
         echo ""
 
-        # Run Gitleaks with proper error handling
+        # Run Gitleaks with proper error handling (scanning current commit only due to fetch-depth: 1)
         echo "🔍 Running Gitleaks scan..."
         gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=0 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
 
