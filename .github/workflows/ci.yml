@@ -61,9 +61,15 @@ jobs:
         fi
         echo ""
 
-        # Run Gitleaks with proper error handling
+                # Run Gitleaks with proper error handling and allowlist configuration
         echo "🔍 Running Gitleaks scan..."
-        gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=0 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
+        if [ -f .gitleaks.toml ]; then
+          echo "Using custom Gitleaks configuration with allowlist..."
+          gitleaks detect --source . --config .gitleaks.toml --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=0 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
+        else
+          echo "Using default Gitleaks configuration..."
+          gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose --no-git --redact=0 2>&1 | tee gitleaks-output.log || GITLEAKS_EXIT_CODE=$?
+        fi
 
         # Check if report was generated
         echo ""

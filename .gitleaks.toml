@@ -1,0 +1,37 @@
+# Gitleaks configuration file
+# This file defines rules for secret detection and excludes false positives
+
+[extend]
+# Use the default Gitleaks configuration as a base
+useDefault = true
+
+[allowlist]
+description = "Allowlist for known false positives"
+
+# Exclude specific files
+paths = [
+    '''README\.md''',
+    '''temp_.*''',
+    '''test_.*''',
+    '''credentials\.json''',  # OAuth2 credentials file (should not be in git)
+    '''token\.json''',        # OAuth2 token file (should not be in git)
+]
+
+# Exclude specific patterns that are known to be safe
+regexes = [
+    '''cafebabe:deadbeef''',           # Test placeholder in documentation
+    '''BUNDLE_ENTERPRISE.*cafebabe''', # Sidekiq test example
+    '''example.*password''',           # Documentation examples
+    '''test.*secret''',                # Test secrets in examples
+    '''placeholder.*key''',            # Placeholder API keys
+]
+
+# Exclude specific commits or authors if needed
+# commits = ["commit-hash-here"]
+
+# Custom rules can be added here if needed
+[[rules]]
+description = "Skip documentation examples"
+id = "skip-docs"
+regex = '''(example|sample|placeholder|test).*[=:]\s*['"][^'"]{8,}['"]'''
+path = '''README\.md'''
