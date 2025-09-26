@@ -61,7 +61,7 @@ class TestEventParser(unittest.TestCase):
         # Verify the mocks were called correctly
         mock_auth.assert_called_once()
         mock_vertexai.init.assert_called_once_with(project=self.project_id, location=self.location, credentials=mock_creds)
-        mock_generative_model.assert_called_once_with("gemini-1.5-flash")
+        mock_generative_model.assert_called_once_with("gemini-2.0-flash-lite")
         mock_model.generate_content.assert_called_once()
 
         # Verify the result
