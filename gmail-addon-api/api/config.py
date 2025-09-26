@@ -31,7 +31,7 @@ class Settings:
     def __init__(self):
         # Google Cloud Configuration
         self.google_cloud_project_id: Optional[str] = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
-        self.google_cloud_location: str = os.getenv('GOOGLE_CLOUD_LOCATION', 'asia-northeast1')
+        self.google_cloud_location: str = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
 
         # API Configuration
         self.api_host: str = os.getenv('API_HOST', '0.0.0.0')

@@ -5,7 +5,7 @@
 **SmartEventAdder is an intelligent AI agent** that processes emails, extracts event information using Gemini, and seamlessly creates Google Calendar events. 
 
 ### Agent Capabilities
-- **🧠 Intelligent Email Analysis**: Uses Google Vertex AI (Gemini 1.5 Flash) to understand natural language and extract structured event data
+- **🧠 Intelligent Email Analysis**: Uses Google Vertex AI (Gemini 2.0 Flash-Lite) to understand natural language and extract structured event data
 - **🔄 Autonomous Workflow Execution**: Handles the complete pipeline from email input to calendar event creation without manual intervention
 - **🌐 Multi-API Integration**: Orchestrates Gmail API, Google Calendar API, and Vertex AI API calls intelligently
 
@@ -19,7 +19,7 @@
 3. **Run Tests**: Copy `frontend/tests/ProductionAPITest.gs` and run `runAllProductionAPITests()`
 4. **Use in Gmail**: Deploy as test add-on and try with real emails
 
-**Live Production API**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app`
+**Live Production API**: `https://smarteventadder-api-20081880195.us-central1.run.app`
 
 ## Project Structure
 
@@ -83,7 +83,7 @@ SmartEventAdder/
 
 ### Core Functionality
 - **Complete Workflow Orchestration**: End-to-end automation from email text to calendar event
-- **AI-Powered Event Parsing**: Uses Google Vertex AI (Gemini 1.5 Flash) to extract event information from natural language text
+- **AI-Powered Event Parsing**: Uses Google Vertex AI (Gemini 2.0 Flash-Lite) to extract event information from natural language text
 - **Google Calendar Integration**: Automatically creates events in your Google Calendar
 - **Multiple Input Methods**: Support for file input, direct text, interactive mode, and direct Message-ID header input
 - **Gmail API Integration**: Fetch emails directly from Gmail using message IDs or Message-ID headers
@@ -146,10 +146,10 @@ Create a `.env` file in the project root and add your configuration:
 
 ```env
 GOOGLE_CLOUD_PROJECT_ID=your_gcp_project_id_here
-GOOGLE_CLOUD_LOCATION=asia-northeast1
+GOOGLE_CLOUD_LOCATION=us-central1
 ```
 
-**Note:** The setup script will help you identify your project ID. Tokyo region (`asia-northeast1`) is recommended for users in Japan.
+**Note:** The setup script will help you identify your project ID. The default region is `us-central1` to access the latest Gemini 2.0 Flash-Lite model. The system automatically detects user timezones and creates calendar events in the correct local time regardless of the API region.
 
 ## Production Gmail Add-on API
 
@@ -157,9 +157,9 @@ GOOGLE_CLOUD_LOCATION=asia-northeast1
 
 The SmartEventAdder API is deployed and ready for production use:
 
-- **🌐 Base URL**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app`
-- **📚 API Documentation**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app/docs`
-- **❤️ Health Check**: `https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/health`
+- **🌐 Base URL**: `https://smarteventadder-api-20081880195.us-central1.run.app`
+- **📚 API Documentation**: `https://smarteventadder-api-20081880195.us-central1.run.app/docs`
+- **❤️ Health Check**: `https://smarteventadder-api-20081880195.us-central1.run.app/api/health`
 
 ### Available API Endpoints
 
@@ -178,15 +178,15 @@ The SmartEventAdder API is deployed and ready for production use:
 
 ```bash
 # Check API health
-curl https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/health
+curl https://smarteventadder-api-20081880195.us-central1.run.app/api/health
 
 # Parse email content
-curl -X POST "https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/parse-email" \
+curl -X POST "https://smarteventadder-api-20081880195.us-central1.run.app/api/parse-email" \
   -H "Content-Type: application/json" \
   -d '{"email_content": "Team meeting tomorrow at 2pm in conference room A"}'
 
 # Complete workflow with Message-ID
-curl -X POST "https://smarteventadder-api-6qqmniwadq-an.a.run.app/api/complete-workflow" \
+curl -X POST "https://smarteventadder-api-20081880195.us-central1.run.app/api/complete-workflow" \
   -H "Content-Type: application/json" \
   -d '{"message_id": "your-message-id-here", "create_event": true}'
 ```
@@ -207,7 +207,32 @@ The Gmail add-on frontend is built with Google Apps Script and integrates seamle
 - **Error Handling**: Comprehensive error messages and fallback options
 - **Identity Token Authentication**: Uses ScriptApp.getIdentityToken() for secure API communication
 - **Base64 Email Decoding**: Robust handling of Gmail API message payloads with multiple encoding methods
+- **Multi-Timezone Support**: Automatically detects user timezone and creates calendar events in local time
 
+### 🌍 Multi-Timezone Support
+
+SmartEventAdder automatically handles timezone detection and creates calendar events in the user's local time, regardless of where the API is hosted.
+
+**How it works:**
+- **Auto-Detection**: Uses Google Calendar settings, Apps Script session timezone, or locale-based mapping
+- **Global Compatibility**: Works for users in Japan (JST), USA (EST/PST), Europe (CET), and more
+- **No Configuration**: Zero setup required - timezone is detected automatically
+- **Accurate Times**: When a Japanese user says "meeting at 2pm tomorrow", the event is created at 2pm JST
+
+**Supported Timezones:**
+- Asia/Tokyo (Japan)
+- America/New_York (US East)
+- America/Los_Angeles (US West)
+- Europe/London (UK)
+- Europe/Berlin (Germany)
+- Asia/Shanghai (China)
+- Australia/Sydney (Australia)
+- And more via automatic detection
+
+**Architecture Benefits:**
+- **Latest AI Models**: API runs in `us-central1` for access to Gemini 2.0 Flash-Lite
+- **Local Time Accuracy**: Calendar events created in user's actual timezone
+- **Global Performance**: Low-latency timezone detection using local browser/Google account data
 
 ## Usage
 
@@ -280,7 +305,7 @@ The meeting will be held at Conference Room A, 123 Main Street, New York, NY.
 """
 
 project_id = "your-gcp-project-id"
-location = "asia-northeast1"  # Tokyo region
+location = "us-central1"  # Default region for Gemini 2.0 Flash-Lite
 
 # Extract structured event data
 event_details = extract_event_details(project_id, location, email_text)
@@ -585,13 +610,13 @@ chmod +x deploy.sh
 # Deploy to Cloud Run (replace with your project ID)
 ./deploy.sh your-project-id
 
-# Example with specific region
+# Example with specific region (us-central1 is now default)
 ./deploy.sh your-project-id us-central1
 ```
 
 #### Deployment Configuration
 
-The deployment uses cost-optimized settings defined in `deploy.sh`:
+The deployment uses cost-optimized settings defined in `deploy.sh` and deploys to `us-central1` region by default to access the latest Gemini 2.0 Flash-Lite model:
 
 ```bash
 # Resource Configuration
@@ -624,10 +649,10 @@ API docs: https://your-service-url.run.app/docs
 
 ```bash
 # Check service status
-gcloud run services describe smarteventadder-api --region=asia-northeast1
+gcloud run services describe smarteventadder-api --region=us-central1
 
 # View logs
-gcloud logs read --service=smarteventadder-api --region=asia-northeast1
+gcloud logs read --service=smarteventadder-api --region=us-central1
 
 # Update service (redeploy)
 ./deploy.sh your-project-id
@@ -682,7 +707,10 @@ testCompleteWorkflowAPI()
 // Test authentication
 testAPIAuthentication()
 
-// Run all tests at once
+// Test timezone auto-detection
+testTimezoneDetection()
+
+// Run all tests at once (includes timezone test)
 runAllProductionAPITests()
 ```
 
@@ -757,6 +785,7 @@ Please arrive 15 minutes early.
 - ✅ Parse Email: Should extract event details from sample emails
 - ⚠️ Create Event: May fail without full Google Calendar auth (this is normal)
 - ✅ Complete Workflow: Should parse email and return event data
+- ✅ Timezone Detection: Should detect user's timezone (Asia/Tokyo, America/New_York, etc.)
 
 **Gmail Add-on:**
 - ✅ Sidebar appears when viewing emails
@@ -764,6 +793,7 @@ Please arrive 15 minutes early.
 - ✅ Editable form fields appear with extracted data
 - ✅ User can edit event details before creating
 - ✅ Success card shows after event creation
+- ✅ Calendar events created in user's local timezone automatically
 
 #### Frontend Files for Deployment
 

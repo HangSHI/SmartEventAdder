@@ -4,7 +4,7 @@
 set -e
 
 PROJECT_ID=${1:-${GOOGLE_CLOUD_PROJECT_ID}}
-REGION=${2:-"asia-northeast1"}
+REGION=${2:-"us-central1"}
 SERVICE_NAME="smarteventadder-api"
 
 if [ -z "$PROJECT_ID" ]; then
@@ -31,7 +31,7 @@ gcloud run deploy $SERVICE_NAME \
     --source . \
     --platform managed \
     --region $REGION \
-    --allow-unauthenticated \
+    --no-allow-unauthenticated \
     --memory 512Mi \
     --cpu 0.17 \
     --max-instances 3 \

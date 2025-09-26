@@ -40,7 +40,7 @@ def load_environment() -> Dict[str, str]:
 
     config = {
         'project_id': os.getenv('GOOGLE_CLOUD_PROJECT_ID'),
-        'location': os.getenv('GOOGLE_CLOUD_LOCATION', 'asia-northeast1')
+        'location': os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
     }
 
     # Validate required configuration

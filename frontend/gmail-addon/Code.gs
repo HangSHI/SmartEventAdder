@@ -13,7 +13,7 @@
 
 // Backend API Configuration
 // Production API endpoint on Google Cloud Run
-const API_BASE_URL = 'https://smarteventadder-api-6qqmniwadq-an.a.run.app/api';
+const API_BASE_URL = 'https://smarteventadder-api-20081880195.us-central1.run.app/api';
 
 // Development/Testing Configuration
 const DEV_MODE = false; // Set to true for development testing
@@ -703,8 +703,64 @@ function createCalendarEvent(e) {
 }
 
 /**
+ * Get user's timezone dynamically from their Google account
+ * Provides multi-timezone support for global users
+ *
+ * @return {string} User's timezone (e.g., 'Asia/Tokyo', 'America/New_York')
+ */
+function getUserTimezone() {
+  try {
+    // Method 1: From user's Google Calendar settings (most accurate)
+    const userTimeZone = CalendarApp.getDefaultCalendar().getTimeZone();
+    console.log('User timezone from Calendar:', userTimeZone);
+    return userTimeZone;
+  } catch (calendarError) {
+    console.warn('Failed to get calendar timezone:', calendarError.message);
+
+    try {
+      // Method 2: From Apps Script session settings
+      const sessionTimeZone = Session.getScriptTimeZone();
+      console.log('User timezone from Session:', sessionTimeZone);
+      return sessionTimeZone;
+    } catch (sessionError) {
+      console.warn('Failed to get session timezone:', sessionError.message);
+
+      // Method 3: Default fallback based on user's Google account locale
+      try {
+        const userLocale = Session.getActiveUserLocale();
+        console.log('User locale:', userLocale);
+
+        // Simple locale to timezone mapping for common cases
+        const localeTimezoneMap = {
+          'ja': 'Asia/Tokyo',         // Japan
+          'en_US': 'America/New_York', // US East
+          'en_GB': 'Europe/London',    // UK
+          'de': 'Europe/Berlin',       // Germany
+          'fr': 'Europe/Paris',        // France
+          'zh_CN': 'Asia/Shanghai',    // China
+          'ko': 'Asia/Seoul',          // Korea
+          'en_AU': 'Australia/Sydney'  // Australia
+        };
+
+        const mappedTimezone = localeTimezoneMap[userLocale] || localeTimezoneMap[userLocale.split('_')[0]];
+        if (mappedTimezone) {
+          console.log('Mapped timezone from locale:', mappedTimezone);
+          return mappedTimezone;
+        }
+      } catch (localeError) {
+        console.warn('Failed to get user locale:', localeError.message);
+      }
+
+      // Final fallback: UTC
+      console.warn('Using UTC as final fallback timezone');
+      return 'UTC';
+    }
+  }
+}
+
+/**
  * Creates a calendar event directly using Google Calendar API
- * Replaces backend API call with direct calendar integration
+ * Now with dynamic timezone support for global users
  *
  * @param {Object} eventData - Event data to create
  * @return {Object} Result with success status and event details
@@ -713,6 +769,10 @@ function createGoogleCalendarEvent(eventData) {
   try {
     console.log('Creating calendar event directly with Google Calendar API');
     console.log('Event data:', eventData);
+
+    // Get user's timezone dynamically
+    const userTimeZone = getUserTimezone();
+    console.log('Creating event in user timezone:', userTimeZone);
 
     // Parse and validate date/time
     const eventDate = eventData.date; // YYYY-MM-DD format
@@ -724,11 +784,11 @@ function createGoogleCalendarEvent(eventData) {
     let endDateTime;
 
     if (startTime.includes(':')) {
-      // Has specific time - create in Asia/Tokyo timezone
+      // Has specific time - create in user's timezone context
       const dateTimeString = `${eventDate}T${startTime}:00`;
-      console.log('Creating date from:', dateTimeString);
+      console.log('Creating date from:', dateTimeString, 'in timezone:', userTimeZone);
 
-      // Create date object and adjust for timezone
+      // Create date object (interprets as local time, which is what we want)
       startDateTime = new Date(dateTimeString);
 
       // Check if the date is invalid
@@ -743,8 +803,8 @@ function createGoogleCalendarEvent(eventData) {
         endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
       }
 
-      console.log('Parsed start time:', startDateTime.toISOString());
-      console.log('Parsed end time:', endDateTime.toISOString());
+      console.log('Parsed start time:', startDateTime.toISOString(), 'for timezone:', userTimeZone);
+      console.log('Parsed end time:', endDateTime.toISOString(), 'for timezone:', userTimeZone);
     } else {
       // All day event
       startDateTime = new Date(eventDate);
@@ -752,18 +812,18 @@ function createGoogleCalendarEvent(eventData) {
       endDateTime.setDate(endDateTime.getDate() + 1);
     }
 
-    // Create calendar event object
+    // Create calendar event object with user's timezone
     const calendarEvent = {
       summary: eventData.summary || 'New Event',
       description: eventData.description || '',
       location: eventData.location || '',
       start: {
         dateTime: startDateTime.toISOString(),
-        timeZone: 'Asia/Tokyo'
+        timeZone: userTimeZone  // Dynamic timezone based on user!
       },
       end: {
         dateTime: endDateTime.toISOString(),
-        timeZone: 'Asia/Tokyo'
+        timeZone: userTimeZone  // Dynamic timezone based on user!
       }
     };
 
