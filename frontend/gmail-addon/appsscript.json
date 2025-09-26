@@ -26,7 +26,7 @@
     "https://www.googleapis.com/auth/calendar"
   ],
   "urlFetchWhitelist": [
-    "https://smarteventadder-api-6qqmniwadq-an.a.run.app/"
+    "https://smarteventadder-api-20081880195.us-central1.run.app/"
   ],
   "addOns": {
     "common": {

@@ -75,7 +75,7 @@ class TestMainFunctions(unittest.TestCase):
         self.assertEqual(config['location'], 'us-central1')
         mock_load_dotenv.assert_called_once()
 
-    @patch.dict(os.environ, {'GOOGLE_CLOUD_LOCATION': 'asia-northeast1'}, clear=True)
+    @patch.dict(os.environ, {'GOOGLE_CLOUD_LOCATION': 'us-central1'}, clear=True)
     @patch('main.load_dotenv')
     def test_load_environment_missing_project_id(self, mock_load_dotenv):
         """Test environment loading with missing project ID."""
@@ -92,7 +92,7 @@ class TestMainFunctions(unittest.TestCase):
         config = load_environment()
 
         self.assertEqual(config['project_id'], 'test-project')
-        self.assertEqual(config['location'], 'asia-northeast1')  # Default
+        self.assertEqual(config['location'], 'us-central1')  # Default
 
     def test_is_message_id_header_valid(self):
         """Test valid Message-ID header detection."""

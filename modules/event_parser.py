@@ -24,8 +24,8 @@ def extract_event_details(project_id, location, email_text):
     # Initialize Vertex AI with OAuth2 credentials
     vertexai.init(project=project_id, location=location, credentials=creds)
 
-    # Initialize the Gemini Pro model (using the newer model name)
-    model = GenerativeModel("gemini-1.5-flash")
+    # Initialize the Gemini 2.0 Flash-Lite model (using the latest model name)
+    model = GenerativeModel("gemini-2.0-flash-lite")
 
     # Create the prompt
     prompt = f"""

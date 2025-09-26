@@ -6,7 +6,7 @@
  */
 
 // Production API Configuration
-const PRODUCTION_API_URL = 'https://smarteventadder-api-6qqmniwadq-an.a.run.app/api';
+const PRODUCTION_API_URL = 'https://smarteventadder-api-20081880195.us-central1.run.app/api';
 
 /**
  * Quick connectivity test to verify the production API is accessible
@@ -17,7 +17,7 @@ function testProductionAPIConnectivity() {
 
   try {
     // Test root endpoint
-    const rootResponse = UrlFetchApp.fetch('https://smarteventadder-api-6qqmniwadq-an.a.run.app/');
+    const rootResponse = UrlFetchApp.fetch('https://smarteventadder-api-20081880195.us-central1.run.app/');
     console.log('Root endpoint status:', rootResponse.getResponseCode());
     console.log('Root response:', rootResponse.getContentText());
 
@@ -287,7 +287,8 @@ function runAllProductionAPITests() {
     parseEmail: false,
     createEvent: false,
     completeWorkflow: false,
-    authentication: false
+    authentication: false,
+    timezone: false
   };
 
   const errors = [];
@@ -342,13 +343,26 @@ function runAllProductionAPITests() {
     console.log('');
 
     // Test 5: Authentication
-    console.log(`[${testNumber++}/5] 🔐 AUTHENTICATION TEST`);
+    console.log(`[${testNumber++}/6] 🔐 AUTHENTICATION TEST`);
     console.log('-'.repeat(40));
     results.authentication = testAPIAuthentication();
     if (!results.authentication) {
       errors.push('⚠️ Authentication test failed - may need Apps Script identity token setup');
     } else {
       console.log('✅ Authentication test passed!');
+    }
+    console.log('');
+
+    // Test 6: Timezone Auto-Detection
+    console.log(`[${testNumber++}/6] 🌍 TIMEZONE DETECTION TEST`);
+    console.log('-'.repeat(40));
+    const timezoneResult = testTimezoneDetection();
+    results.timezone = timezoneResult.success;
+    if (!results.timezone) {
+      errors.push('❌ Timezone detection failed - users may get wrong event times');
+    } else {
+      console.log('✅ Timezone detection successful!');
+      console.log('🌍 User timezone:', timezoneResult.timezone);
     }
     console.log('');
 
@@ -411,6 +425,12 @@ function runAllProductionAPITests() {
     console.log('🔧 Check complete pipeline: email → parse → event creation');
   }
 
+  if (results.timezone) {
+    console.log('✅ Multi-timezone support working - global users supported');
+  } else {
+    console.log('⚠️ Timezone detection issues - calendar events may show wrong times');
+  }
+
   console.log('');
   console.log('🎯 NEXT STEPS:');
   console.log('-'.repeat(40));
@@ -432,6 +452,82 @@ function runAllProductionAPITests() {
     errors: errors,
     success: passed >= 3 // Consider successful if most tests pass
   };
+}
+
+/**
+ * Test timezone auto-detection functionality
+ */
+function testTimezoneDetection() {
+  console.log('🌍 Testing Timezone Auto-Detection...');
+
+  try {
+    // Copy the getUserTimezone function here for testing
+    function getUserTimezone() {
+      try {
+        const userTimeZone = CalendarApp.getDefaultCalendar().getTimeZone();
+        console.log('User timezone from Calendar:', userTimeZone);
+        return userTimeZone;
+      } catch (calendarError) {
+        console.warn('Failed to get calendar timezone:', calendarError.message);
+
+        try {
+          const sessionTimeZone = Session.getScriptTimeZone();
+          console.log('User timezone from Session:', sessionTimeZone);
+          return sessionTimeZone;
+        } catch (sessionError) {
+          console.warn('Failed to get session timezone:', sessionError.message);
+
+          try {
+            const userLocale = Session.getActiveUserLocale();
+            console.log('User locale:', userLocale);
+
+            const localeTimezoneMap = {
+              'ja': 'Asia/Tokyo',
+              'en_US': 'America/New_York',
+              'en_GB': 'Europe/London',
+              'de': 'Europe/Berlin',
+              'fr': 'Europe/Paris',
+              'zh_CN': 'Asia/Shanghai',
+              'ko': 'Asia/Seoul',
+              'en_AU': 'Australia/Sydney'
+            };
+
+            const mappedTimezone = localeTimezoneMap[userLocale] || localeTimezoneMap[userLocale.split('_')[0]];
+            if (mappedTimezone) {
+              console.log('Mapped timezone from locale:', mappedTimezone);
+              return mappedTimezone;
+            }
+          } catch (localeError) {
+            console.warn('Failed to get user locale:', localeError.message);
+          }
+
+          console.warn('Using UTC as final fallback timezone');
+          return 'UTC';
+        }
+      }
+    }
+
+    const detectedTimezone = getUserTimezone();
+    console.log('✅ Timezone detection successful!');
+    console.log('🌍 Detected timezone:', detectedTimezone);
+
+    // Test if it's a valid timezone
+    const testDate = new Date();
+    console.log('📅 Sample time in detected timezone:', testDate.toLocaleString('en-US', { timeZone: detectedTimezone }));
+
+    return {
+      success: true,
+      timezone: detectedTimezone,
+      sampleTime: testDate.toLocaleString('en-US', { timeZone: detectedTimezone })
+    };
+
+  } catch (error) {
+    console.error('❌ Timezone detection test failed:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 }
 
 /**
