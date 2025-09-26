@@ -27,20 +27,43 @@ def extract_event_details(project_id, location, email_text):
     # Initialize the Gemini 2.0 Flash-Lite model (using the latest model name)
     model = GenerativeModel("gemini-2.0-flash-lite")
 
-    # Create the prompt
+    # Create the universal multilingual prompt
     prompt = f"""
-Extract the following event details from the email text below and return ONLY a valid JSON object string with these keys:
+You are a universal event extraction assistant. Extract event details from ANY language email and return ONLY a valid JSON object with these keys:
 
-- summary: A concise title for the event
-- date: The date in YYYY-MM-DD format
-- start_time: The time in 24-hour HH:MM format
-- location: The address or place name
+- summary: Event title (preserve original language if non-English, or provide English translation)
+- date: Date in YYYY-MM-DD format
+- start_time: Time in 24-hour HH:MM format
+- location: Location name (preserve original characters/script)
 
-If any value is not found, use null for that key.
+UNIVERSAL DATE/TIME PARSING RULES:
+• Dates: Convert ANY format to YYYY-MM-DD
+  - English: Aug 22, 2024 / August 22nd / 8/22/2024
+  - Japanese: 2024年08月22日 / 令和6年8月22日
+  - Chinese: 2024年8月22日 / 二〇二四年八月二十二日
+  - European: 22.08.2024 / 22/08/2024
+  - ISO: 2024-08-22
 
-Return ONLY the JSON object, no other text or explanation.
+• Times: Convert ANY format to 24-hour HH:MM
+  - English: 2:30 PM / 2:30pm / 14:30
+  - Japanese: 午後2時30分 / 14時30分 / 2時30分
+  - Chinese: 下午2点30分 / 14点30分
+  - European: 14.30 / 14:30
 
-Email text:
+LOCATION PRESERVATION:
+• Keep original script: 白山店, 北京大学, 서울역, Café Berlin
+• Include full address if provided
+• Preserve business names exactly as written
+
+CONTENT ANALYSIS:
+• Identify event type from context (meeting, appointment, reservation, etc.)
+• Extract from confirmations, invitations, booking emails
+• Handle mixed-language content
+• Work with any writing system (Latin, CJK, Arabic, Cyrillic, etc.)
+
+Return ONLY the JSON object. Use null for missing values.
+
+Email content:
 {email_text}
 """
 
